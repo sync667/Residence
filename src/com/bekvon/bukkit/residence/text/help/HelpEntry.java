@@ -12,7 +12,8 @@ import com.bekvon.bukkit.residence.containers.HelpLines;
 import com.bekvon.bukkit.residence.containers.lm;
 import com.bekvon.bukkit.residence.protection.ClaimedResidence;
 import com.bekvon.bukkit.residence.protection.FlagPermissions;
-import com.bekvon.bukkit.residence.utils.RawMessage;
+
+import cmiLib.RawMessage;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -283,6 +284,9 @@ public class HelpEntry {
 	    int i = 0;
 	    while (ok) {
 
+		if (i >= args.length)
+		    break;
+
 		if (args[i].equalsIgnoreCase(""))
 		    return tempmeinPath.getKeys(false);
 
@@ -297,7 +301,7 @@ public class HelpEntry {
 	    int neededArgPlace = args.length - 2 - i;
 
 	    boolean subCommand = true;
-	    if (tempmeinPath.isConfigurationSection(args[i])) {
+	    if (i < args.length && tempmeinPath.isConfigurationSection(args[i])) {
 		subCommand = false;
 		tempmeinPath = tempmeinPath.getConfigurationSection(args[i]);
 	    }

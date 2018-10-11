@@ -44,12 +44,12 @@ import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 
 import com.bekvon.bukkit.residence.Residence;
-import com.bekvon.bukkit.residence.CMILib.CMIEffect;
-import com.bekvon.bukkit.residence.CMILib.CMIEffectManager.CMIParticle;
-import com.bekvon.bukkit.residence.CMILib.ItemManager.CMIMaterial;
 import com.bekvon.bukkit.residence.containers.Flags;
 import com.bekvon.bukkit.residence.containers.NMS;
 
+import cmiLib.CMIEffect;
+import cmiLib.CMIEffectManager.CMIParticle;
+import cmiLib.ItemManager.CMIMaterial;
 import net.minecraft.server.v1_13_R1.Packet;
 import net.minecraft.server.v1_13_R1.PacketPlayOutWorldParticles;
 
@@ -181,6 +181,7 @@ public class v1_13_R1 implements NMS {
 	matUseFlagList.put(CMIMaterial.LIGHT_GRAY_SHULKER_BOX.getMaterial(), Flags.container);
 	matUseFlagList.put(Material.WHITE_SHULKER_BOX, Flags.container);
 	matUseFlagList.put(Material.YELLOW_SHULKER_BOX, Flags.container);
+	matUseFlagList.put(Material.SHULKER_BOX, Flags.container);
 
 	/* 1.13 Shulker Box */
 

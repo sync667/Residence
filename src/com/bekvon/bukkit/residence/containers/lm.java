@@ -88,6 +88,8 @@ public enum lm {
     Sign_ForSaleResName("&8%1"),
     Sign_ForSaleBottom("&5%1m\u00B3"),
     Sign_LookAt("&cYou are not looking at sign"),
+    Sign_ResName("&8%1"),
+    Sign_Owner("&5%1"),
 
     Siege_Started("&7Siege started!"),
     Siege_noSelf("&cCan't siege your own residence!"),
@@ -378,6 +380,7 @@ public enum lm {
     General_UseNumbers("&cPlease use numbers..."),
     General_CantPlaceLava("&cYou can't place lava outside residence and higher than &6%1 &cblock level", "Replace all text with '' to disable this message"),
     General_CantPlaceWater("&cYou can't place Water outside residence and higher than &6%1 &cblock level", "Replace all text with '' to disable this message"),
+    General_CantPlaceChest("&cYou can't place chest at this place"),
     General_NoPermission("&cYou dont have permission for this."),
     General_NoCmdPermission("&cYou dont have permission for this command."),
     General_DefaultUsage("&eType &6/%1 ? &efor more info"),

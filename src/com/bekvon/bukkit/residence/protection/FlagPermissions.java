@@ -22,12 +22,14 @@ import org.bukkit.permissions.Permission;
 import org.bukkit.permissions.PermissionDefault;
 
 import com.bekvon.bukkit.residence.Residence;
-import com.bekvon.bukkit.residence.CMILib.ItemManager.CMIMaterial;
 import com.bekvon.bukkit.residence.containers.Flags;
 import com.bekvon.bukkit.residence.containers.MinimizeFlags;
 import com.bekvon.bukkit.residence.containers.ResidencePlayer;
 import com.bekvon.bukkit.residence.containers.lm;
 import com.bekvon.bukkit.residence.permissions.PermissionGroup;
+
+import cmiLib.ItemManager.CMIMaterial;
+import cmiLib.VersionChecker.Version;
 
 public class FlagPermissions {
 
@@ -209,7 +211,7 @@ public class FlagPermissions {
 		continue;
 	    addMaterialToUseFlag(one.getMaterial(), Flags.bed);
 	}
-	
+
 	addMaterialToUseFlag(Material.BREWING_STAND, Flags.brew);
 	addMaterialToUseFlag(Material.CAKE, Flags.cake);
 	addMaterialToUseFlag(Material.NOTE_BLOCK, Flags.note);
@@ -218,6 +220,16 @@ public class FlagPermissions {
 	addMaterialToUseFlag(CMIMaterial.OAK_BUTTON.getMaterial(), Flags.button);
 	addMaterialToUseFlag(Material.ANVIL, Flags.anvil);
 	addMaterialToUseFlag(Material.FLOWER_POT, Flags.flowerpot);
+
+	if (Version.isCurrentEqualOrHigher(Version.v1_13_R1))
+	    for (CMIMaterial one : CMIMaterial.values()) {
+		if (!one.isPottedFlower())
+		    continue;
+		if (one.getMaterial() == null)
+		    continue;
+		addMaterialToUseFlag(one.getMaterial(), Flags.flowerpot);
+	    }
+
 	addMaterialToUseFlag(Material.BEACON, Flags.beacon);
 	addMaterialToUseFlag(Material.JUKEBOX, Flags.container);
 	addMaterialToUseFlag(Material.CHEST, Flags.container);
@@ -674,7 +686,7 @@ public class FlagPermissions {
 		    for (Entry<String, Integer> one : ((HashMap<String, Integer>) root.get("PlayerFlags")).entrySet()) {
 			ft = Residence.getInstance().getResidenceManager().getChacheFlags(((ResidencePermissions) newperms).getWorld(), one.getValue());
 			if (ft != null && !ft.isEmpty())
-			    t.put(one.getKey(), ft);
+			    t.put(one.getKey(), new HashMap<String, Boolean>(ft));
 		    }
 		    if (!t.isEmpty())
 			newperms.playerFlags = t;
@@ -713,7 +725,7 @@ public class FlagPermissions {
 		    for (Entry<String, Integer> one : ((HashMap<String, Integer>) root.get("GroupFlags")).entrySet()) {
 			ft = Residence.getInstance().getResidenceManager().getChacheFlags(((ResidencePermissions) newperms).getWorld(), one.getValue());
 			if (ft != null && !ft.isEmpty())
-			    t.put(one.getKey(), ft);
+			    t.put(one.getKey(), new HashMap<String, Boolean>(ft));
 		    }
 		    if (!t.isEmpty()) {
 			newperms.groupFlags = t;
@@ -736,7 +748,7 @@ public class FlagPermissions {
 		    Map<String, Boolean> ft = new HashMap<String, Boolean>();
 		    ft = Residence.getInstance().getResidenceManager().getChacheFlags(((ResidencePermissions) newperms).getWorld(), (Integer) root.get("AreaFlags"));
 		    if (ft != null && !ft.isEmpty())
-			newperms.cuboidFlags = ft;
+			newperms.cuboidFlags = new HashMap<String, Boolean>(ft);
 		}
 	    }
 

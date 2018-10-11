@@ -15,7 +15,8 @@ import com.bekvon.bukkit.residence.protection.ClaimedResidence;
 import com.bekvon.bukkit.residence.protection.FlagPermissions.FlagState;
 import com.bekvon.bukkit.residence.text.help.PageInfo;
 import com.bekvon.bukkit.residence.utils.GetTime;
-import com.bekvon.bukkit.residence.utils.RawMessage;
+
+import cmiLib.RawMessage;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -228,6 +229,9 @@ public class RentManager implements MarketRentInterface {
 	    newrent.AllowAutoPay = AllowAutoPay;
 	    res.setRentable(newrent);
 	    rentableLand.add(res);
+	    
+	    plugin.getSignUtil().CheckSign(res);
+	    
 	    plugin.msg(player, lm.Residence_ForRentSuccess, res.getResidenceName(), amount, days);
 	} else {
 	    plugin.msg(player, lm.Residence_AlreadyRent);
