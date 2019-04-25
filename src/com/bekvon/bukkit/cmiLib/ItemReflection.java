@@ -2,7 +2,7 @@
  * Copyright (C) 2017 Zrips
  */
 
-package cmiLib;
+package com.bekvon.bukkit.cmiLib;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -12,7 +12,7 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
-import cmiLib.VersionChecker.Version;
+import com.bekvon.bukkit.cmiLib.VersionChecker.Version;
 
 
 public class ItemReflection {
@@ -174,7 +174,7 @@ public class ItemReflection {
 	return CraftServer;
     }
 
-    public ItemStack getItemInOffHand(Player player) {
+    public static ItemStack getItemInOffHand(Player player) {
 	if (Version.getCurrent().isLower(Version.v1_9_R1))
 	    return null;
 	return player.getInventory().getItemInOffHand();

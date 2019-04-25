@@ -13,9 +13,10 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
+import com.bekvon.bukkit.cmiLib.ConfigReader;
+import com.bekvon.bukkit.cmiLib.RawMessage;
 import com.bekvon.bukkit.residence.Residence;
 import com.bekvon.bukkit.residence.containers.CommandAnnotation;
-import com.bekvon.bukkit.residence.containers.ConfigReader;
 import com.bekvon.bukkit.residence.containers.cmd;
 import com.bekvon.bukkit.residence.containers.lm;
 import com.bekvon.bukkit.residence.protection.ClaimedResidence;
@@ -25,8 +26,6 @@ import com.bekvon.bukkit.residence.shopStuff.ShopListener;
 import com.bekvon.bukkit.residence.shopStuff.ShopVote;
 import com.bekvon.bukkit.residence.shopStuff.Vote;
 import com.bekvon.bukkit.residence.text.help.PageInfo;
-
-import cmiLib.RawMessage;
 
 public class shop implements cmd {
 
@@ -155,9 +154,12 @@ public class shop implements cmd {
 	    for (Entry<String, Double> one : ShopList.entrySet()) {
 		if (!pi.isEntryOk())
 		    continue;
-		if (pi.isBreak())		    
+		if (pi.isBreak())
 		    break;
-
+		ClaimedResidence res = plugin.getResidenceManager().getByName(one.getKey());
+		if (res == null)
+		    continue;
+		
 		Vote vote = plugin.getShopSignUtilManager().getAverageVote(one.getKey());
 		String votestat = "";
 
@@ -165,8 +167,8 @@ public class shop implements cmd {
 		    votestat = vote.getAmount() == 0 ? "" : plugin.msg(lm.Shop_ListLiked, plugin.getShopSignUtilManager().getLikes(one.getKey()));
 		} else
 		    votestat = vote.getAmount() == 0 ? "" : plugin.msg(lm.Shop_ListVoted, vote.getVote(), vote.getAmount());
-		ClaimedResidence res = plugin.getResidenceManager().getByName(one.getKey());
-		String owner = plugin.getResidenceManager().getByName(one.getKey()).getOwner();
+
+		String owner = res.getOwner();
 		String message = plugin.msg(lm.Shop_List, pi.getPositionForOutput(), one.getKey(), owner, votestat);
 
 		String desc = res.getShopDesc() == null ? plugin.msg(lm.Shop_NoDesc) : plugin.msg(

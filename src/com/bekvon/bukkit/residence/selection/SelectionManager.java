@@ -17,6 +17,9 @@ import org.bukkit.entity.Player;
 import org.bukkit.permissions.Permission;
 import org.bukkit.permissions.PermissionDefault;
 
+import com.bekvon.bukkit.cmiLib.ActionBarTitleMessages;
+import com.bekvon.bukkit.cmiLib.CMIEffect;
+import com.bekvon.bukkit.cmiLib.CMIEffectManager.CMIParticle;
 import com.bekvon.bukkit.residence.Residence;
 import com.bekvon.bukkit.residence.containers.ResidencePlayer;
 import com.bekvon.bukkit.residence.containers.SelectionSides;
@@ -25,10 +28,6 @@ import com.bekvon.bukkit.residence.containers.lm;
 import com.bekvon.bukkit.residence.permissions.PermissionGroup;
 import com.bekvon.bukkit.residence.protection.ClaimedResidence;
 import com.bekvon.bukkit.residence.protection.CuboidArea;
-
-import cmiLib.ActionBarTitleMessages;
-import cmiLib.CMIEffect;
-import cmiLib.CMIEffectManager.CMIParticle;
 
 public class SelectionManager {
     protected Map<UUID, Selection> selections;
@@ -277,18 +276,18 @@ public class SelectionManager {
 
     private int getMaxWorldHeight(World world) {
 	if (world == null)
-	    return 256;
+	    return 255;
 	switch (world.getEnvironment()) {
 	case NETHER:
 	    return 128;
 	case NORMAL:
 	case THE_END:
-	    return 256;
+	    return 255;
 	default:
 	    break;
 	}
 
-	return 256;
+	return 255;
     }
 
     public enum Direction {
@@ -322,12 +321,12 @@ public class SelectionManager {
     }
 
     public void updateLocations(Player player, Location loc1, Location loc2, boolean force) {
-	if (loc1 != null && loc2 != null) {
-	    Selection selection = getSelection(player);
+	Selection selection = getSelection(player);
+	if (loc1 != null)
 	    selection.setBaseLoc1(loc1);
+	if (loc2 != null)
 	    selection.setBaseLoc2(loc2);
-	    this.afterSelectionUpdate(player, force);
-	}
+	this.afterSelectionUpdate(player, force);
     }
 
     public void placeLoc1(Player player, Location loc) {
@@ -361,7 +360,7 @@ public class SelectionManager {
     }
 
     public void afterSelectionUpdate(Player player, boolean force) {
-	if (!hasPlacedBoth(player))
+	if (!this.hasPlacedBoth(player))
 	    return;
 
 	Visualizer v = vMap.get(player.getUniqueId());
@@ -435,7 +434,7 @@ public class SelectionManager {
 	ResidencePlayer rPlayer = plugin.getPlayerManager().getResidencePlayer(player);
 	PermissionGroup group = rPlayer.getGroup();
 	if (plugin.getConfigManager().enableEconomy())
-	    Message += " " + plugin.msg(lm.General_LandCost, ((int) Math.ceil(cuboidArea.getSize() * group.getCostPerBlock())));
+	    Message += " " + plugin.msg(lm.General_LandCost, cuboidArea.getCost(group));
 
 	ActionBarTitleMessages.send(player, Message);
 
@@ -451,7 +450,7 @@ public class SelectionManager {
 	    PermissionGroup group = rPlayer.getGroup();
 
 	    if (plugin.getConfigManager().enableEconomy())
-		plugin.msg(player, lm.General_LandCost, ((int) Math.ceil(cuboidArea.getSize() * group.getCostPerBlock())));
+		plugin.msg(player, lm.General_LandCost, cuboidArea.getCost(group));
 	    player.sendMessage(ChatColor.YELLOW + "X" + plugin.msg(lm.General_Size, cuboidArea.getXSize()));
 	    player.sendMessage(ChatColor.YELLOW + "Y" + plugin.msg(lm.General_Size, cuboidArea.getYSize()));
 	    player.sendMessage(ChatColor.YELLOW + "Z" + plugin.msg(lm.General_Size, cuboidArea.getZSize()));
@@ -785,7 +784,7 @@ public class SelectionManager {
 		continue;
 
 	    Location l = locList.get(i);
-//	    if (plugin.isSpigot()) {
+
 	    CMIParticle effect = null;
 	    if (sides) {
 		effect = error ? plugin.getConfigManager().getOverlapSpigotSides() : plugin.getConfigManager().getSelectedSpigotSides();
@@ -796,24 +795,6 @@ public class SelectionManager {
 	    CMIEffect ef = new CMIEffect(effect);
 
 	    Residence.getInstance().getNms().playEffect(player, l, ef);
-
-//		player.spigot().playEffect(l, effect, 0, 0, 0, 0, 0, 0, 1, 128);
-//	    } else {
-//		if (error) {
-//		    if (sides)
-//			plugin.getConfigManager().getOverlapSides().display(0, 0, 0, 0, 1, l, player);
-//		    else
-//			plugin.getConfigManager().getOverlapFrame().display(0, 0, 0, 0, 1, l, player);
-//		} else {
-//		    if (sides)
-//			plugin.getConfigManager().getSelectedSides().display(0, 0, 0, 0, 1, l, player);
-//		    else
-//			plugin.getConfigManager().getSelectedFrame().display(0, 0, 0, 0, 1, l, player);
-//		}
-//	    }
-
-//	    if (!sameLocation)
-//		trimed.add(l);
 	}
     }
 
@@ -825,18 +806,6 @@ public class SelectionManager {
 	    plugin.msg(player, lm.Select_Points);
 	}
     }
-
-//    @Deprecated
-//    public void qsky(Player player) {
-//	Selection selection = this.getSelection(player);
-//	selection.shadowSky();
-//    }
-//
-//    @Deprecated
-//    public void qbedrock(Player player) {
-//	Selection selection = this.getSelection(player);
-//	selection.shadowBedrock();
-//    }
 
     public void sky(Player player, boolean resadmin) {
 	Selection selection = this.getSelection(player);
@@ -874,8 +843,6 @@ public class SelectionManager {
 	Location loc2 = new Location(myloc.getWorld(), myloc.getBlockX() - xsize, myloc.getBlockY() - ysize, myloc.getBlockZ() - zsize);
 
 	CuboidArea area = new CuboidArea(loc1, loc2);
-
-//	area.getlo
 
 	placeLoc1(player, loc1, false);
 	placeLoc2(player, loc2, false);

@@ -25,6 +25,8 @@ import org.bukkit.block.Block;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
+import com.bekvon.bukkit.cmiLib.ActionBarTitleMessages;
+import com.bekvon.bukkit.cmiLib.RawMessage;
 import com.bekvon.bukkit.residence.Residence;
 import com.bekvon.bukkit.residence.Siege.ResidenceSiege;
 import com.bekvon.bukkit.residence.chat.ChatChannel;
@@ -45,14 +47,13 @@ import com.bekvon.bukkit.residence.event.ResidenceSubzoneCreationEvent;
 import com.bekvon.bukkit.residence.event.ResidenceTPEvent;
 import com.bekvon.bukkit.residence.itemlist.ItemList.ListType;
 import com.bekvon.bukkit.residence.itemlist.ResidenceItemList;
+import com.bekvon.bukkit.residence.listeners.ResidencePlayerListener;
 import com.bekvon.bukkit.residence.permissions.PermissionGroup;
 import com.bekvon.bukkit.residence.protection.FlagPermissions.FlagCombo;
 import com.bekvon.bukkit.residence.shopStuff.ShopVote;
 import com.bekvon.bukkit.residence.signsStuff.Signs;
 import com.bekvon.bukkit.residence.text.help.PageInfo;
-
-import cmiLib.ActionBarTitleMessages;
-import cmiLib.RawMessage;
+import com.bekvon.bukkit.residence.utils.Debug;
 
 public class ClaimedResidence {
 
@@ -89,7 +90,7 @@ public class ClaimedResidence {
     private Residence plugin;
 
     private ResidenceSiege siege;
-    
+
     private Set<Signs> signsInResidence = new HashSet<Signs>();
 
     public String getResidenceName() {
@@ -190,7 +191,7 @@ public class ClaimedResidence {
     }
 
     public ClaimedResidence(String creationWorld, Residence plugin) {
-	this(plugin.getServerLandname(), creationWorld, plugin);
+	this(plugin.getServerLandName(), creationWorld, plugin);
     }
 
     public ClaimedResidence(String creator, String creationWorld, Residence plugin) {
@@ -421,10 +422,12 @@ public class ClaimedResidence {
 		plugin.msg(player, lm.Area_SizeLimit);
 		return false;
 	    }
+
 	    if (group.getMinHeight() > area.getLowLoc().getBlockY()) {
 		plugin.msg(player, lm.Area_LowLimit, String.format("%d", group.getMinHeight()));
 		return false;
 	    }
+
 	    if (group.getMaxHeight() < area.getHighLoc().getBlockY()) {
 		plugin.msg(player, lm.Area_HighLimit, String.format("%d", group.getMaxHeight()));
 		return false;
@@ -439,7 +442,7 @@ public class ClaimedResidence {
 	    }
 
 	    if (chargeMoney && parent == null && plugin.getConfigManager().enableEconomy() && !resadmin) {
-		int chargeamount = (int) Math.ceil(area.getSize() * group.getCostPerBlock());
+		double chargeamount = area.getCost(group);
 		if (!plugin.getTransactionManager().chargeEconomyMoney(player, chargeamount)) {
 		    return false;
 		}
@@ -579,7 +582,7 @@ public class ClaimedResidence {
 	    }
 
 	    if (parent == null && plugin.getConfigManager().enableEconomy() && !resadmin) {
-		int chargeamount = (int) Math.ceil((newarea.getSize() - oldarea.getSize()) * group.getCostPerBlock());
+		double chargeamount = newarea.getCost(group) - oldarea.getCost(group);
 		if (chargeamount > 0) {
 		    if (!plugin.getTransactionManager().chargeEconomyMoney(player, chargeamount)) {
 			return false;
@@ -596,7 +599,8 @@ public class ClaimedResidence {
 	if ((!resadmin) && (player != null)) {
 	    int chargeamount = (int) Math.ceil((newarea.getSize() - oldarea.getSize()) * getBlockSellPrice().doubleValue());
 	    if ((chargeamount < 0) && (this.plugin.getConfigManager().useResMoneyBack())) {
-		this.plugin.getTransactionManager().giveEconomyMoney(player, -chargeamount);
+		if (!this.isServerLand())
+		    this.plugin.getTransactionManager().giveEconomyMoney(player, -chargeamount);
 	    }
 	}
 
@@ -615,9 +619,13 @@ public class ClaimedResidence {
 
     public boolean addSubzone(Player player, Location loc1, Location loc2, String name, boolean resadmin) {
 	if (player == null) {
-	    return this.addSubzone(null, plugin.getServerLandname(), loc1, loc2, name, resadmin);
+	    return this.addSubzone(null, plugin.getServerLandName(), loc1, loc2, name, resadmin);
 	}
 	return this.addSubzone(player, player.getName(), loc1, loc2, name, resadmin);
+    }
+
+    public boolean isServerLand() {
+	return this.getOwnerUUID().toString() == Residence.getInstance().getServerLandUUID();
     }
 
     public boolean addSubzone(Player player, String name, boolean resadmin) {
@@ -708,24 +716,24 @@ public class ClaimedResidence {
 		newres.getPermissions().setParent(perms);
 	    }
 
-	    newres.resName = name;
+	    newres.resName = NName;
 
 	    newres.setCreateTime();
 
-	    ResidenceSubzoneCreationEvent resevent = new ResidenceSubzoneCreationEvent(player, name, newres, newArea);
+	    ResidenceSubzoneCreationEvent resevent = new ResidenceSubzoneCreationEvent(player, NName, newres, newArea);
 	    plugin.getServ().getPluginManager().callEvent(resevent);
 	    if (resevent.isCancelled())
 		return false;
 
 	    subzones.put(name, newres);
 	    if (player != null) {
-		plugin.msg(player, lm.Area_Create, name);
-		plugin.msg(player, lm.Subzone_Create, name);
+		plugin.msg(player, lm.Area_Create, NName);
+		plugin.msg(player, lm.Subzone_Create, NName);
 	    }
 	    return true;
 	}
 	if (player != null) {
-	    plugin.msg(player, lm.Subzone_CreateFail, name);
+	    plugin.msg(player, lm.Subzone_CreateFail, NName);
 	}
 	return false;
     }
@@ -965,7 +973,7 @@ public class ClaimedResidence {
 	    Block block = newLoc.getBlock();
 	    Block block2 = newLoc.clone().add(0, 1, 0).getBlock();
 	    Block block3 = newLoc.clone().add(0, -1, 0).getBlock();
-	    if (plugin.getNms().isEmptyBlock(block) && plugin.getNms().isEmptyBlock(block2) && !plugin.getNms().isEmptyBlock(block3)) {
+	    if (ResidencePlayerListener.isEmptyBlock(block) && ResidencePlayerListener.isEmptyBlock(block2) && !ResidencePlayerListener.isEmptyBlock(block3)) {
 		found = true;
 		break;
 	    }
@@ -1023,12 +1031,12 @@ public class ClaimedResidence {
 		Block block = loc.getBlock();
 		Block block2 = loc.clone().add(0, 1, 0).getBlock();
 		Block block3 = loc.clone().add(0, -1, 0).getBlock();
-		if (!plugin.getNms().isEmptyBlock(block3) && plugin.getNms().isEmptyBlock(block) && plugin.getNms().isEmptyBlock(block2)) {
+		if (!ResidencePlayerListener.isEmptyBlock(block3) && ResidencePlayerListener.isEmptyBlock(block) && ResidencePlayerListener.isEmptyBlock(block2)) {
 		    break;
 		}
 	    }
 
-	    if (!plugin.getNms().isEmptyBlock(loc.getBlock()))
+	    if (!ResidencePlayerListener.isEmptyBlock(loc.getBlock()))
 		continue;
 
 	    if (loc.clone().add(0, -1, 0).getBlock().getState().getType() == Material.LAVA)
@@ -1211,7 +1219,7 @@ public class ClaimedResidence {
 	for (int i = 0; i < 255; i++) {
 	    tempLoc.setY(from - i);
 	    Block block = tempLoc.getBlock();
-	    if (plugin.getNms().isEmptyBlock(block)) {
+	    if (ResidencePlayerListener.isEmptyBlock(block)) {
 		fallDistance++;
 	    } else {
 		break;
@@ -1224,7 +1232,8 @@ public class ClaimedResidence {
 	boolean isAdmin = plugin.isResAdminOn(reqPlayer);
 	boolean bypassDelay = targetPlayer.hasPermission("residence.tpdelaybypass");
 
-	if (!resadmin && !isAdmin && !reqPlayer.hasPermission("residence.tpbypass") && !this.isOwner(targetPlayer)) {
+	if (!resadmin && !isAdmin && !reqPlayer.hasPermission("residence.tpbypass") && (!this.isOwner(targetPlayer) || this.isOwner(targetPlayer) && Residence.getInstance().getConfigManager()
+	    .isCanTeleportIncludeOwner())) {
 	    ResidencePlayer rPlayer = plugin.getPlayerManager().getResidencePlayer(reqPlayer);
 	    PermissionGroup group = rPlayer.getGroup();
 	    if (!group.hasTpAccess()) {
@@ -1448,7 +1457,7 @@ public class ClaimedResidence {
 	root.put("Areas", areamap);
 	Map<String, Object> subzonemap = new HashMap<>();
 	for (Entry<String, ClaimedResidence> sz : subzones.entrySet()) {
-	    subzonemap.put(sz.getKey(), sz.getValue().save());
+	    subzonemap.put(sz.getValue().getResidenceName(), sz.getValue().save());
 	}
 	if (!subzonemap.isEmpty())
 	    root.put("Subzones", subzonemap);
@@ -1782,6 +1791,8 @@ public class ClaimedResidence {
     }
 
     public boolean isOwner(Player p) {
+	if (p == null)
+	    return false;
 	if (plugin.getConfigManager().isOfflineMode())
 	    return perms.getOwner().equals(p.getName());
 	return perms.getOwnerUUID().equals(p.getUniqueId());
@@ -1971,5 +1982,13 @@ public class ClaimedResidence {
 
     public void setSignsInResidence(Set<Signs> signsInResidence) {
 	this.signsInResidence = signsInResidence;
+    }
+
+    public double getWorthByOwner() {
+	return (int) ((getTotalSize() * getOwnerGroup().getCostPerBlock()) * 100) / 100D;
+    }
+
+    public double getWorth() {
+	return (int) ((getTotalSize() * getBlockSellPrice()) * 100) / 100.0;
     }
 }

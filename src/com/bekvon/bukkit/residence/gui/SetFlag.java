@@ -24,6 +24,7 @@ import com.bekvon.bukkit.residence.containers.Flags;
 import com.bekvon.bukkit.residence.containers.lm;
 import com.bekvon.bukkit.residence.protection.ClaimedResidence;
 import com.bekvon.bukkit.residence.protection.FlagPermissions.FlagState;
+import com.bekvon.bukkit.residence.utils.Debug;
 
 public class SetFlag {
 
@@ -32,7 +33,7 @@ public class SetFlag {
     private String targetPlayer = null;
     private Inventory inventory;
     private LinkedHashMap<String, Object> permMap = new LinkedHashMap<String, Object>();
-    private LinkedHashMap<String, List<String>> description = new LinkedHashMap<String, List<String>>();
+    private LinkedHashMap<Flags, List<String>> description = new LinkedHashMap<Flags, List<String>>();
     private List<String> flags = null;
     private boolean admin = false;
     private int page = 1;
@@ -124,13 +125,11 @@ public class SetFlag {
     }
 
     private void fillFlagDescriptions() {
-	Set<String> list = Residence.getInstance().getLM().getKeyList("CommandHelp.SubCommands.res.SubCommands.flags.SubCommands");
-	for (String onelist : list) {
-	    String onelisttemp = Residence.getInstance().msg("CommandHelp.SubCommands.res.SubCommands.flags.SubCommands." + onelist + ".Description");
+	for (Flags flag : Flags.values()) {
 	    List<String> lore = new ArrayList<String>();
 	    int i = 0;
 	    String sentence = "";
-	    for (String oneWord : onelisttemp.split(" ")) {
+	    for (String oneWord : flag.getDesc().split(" ")) {
 		sentence += oneWord + " ";
 		if (i > 4) {
 		    lore.add(ChatColor.YELLOW + sentence);
@@ -140,7 +139,7 @@ public class SetFlag {
 		i++;
 	    }
 	    lore.add(ChatColor.YELLOW + sentence);
-	    description.put(onelist, lore);
+	    description.put(flag, lore);
 	}
     }
 
@@ -156,12 +155,12 @@ public class SetFlag {
 	Map<String, Boolean> globalFlags = Residence.getInstance().getPermissionManager().getAllFlags().getFlags();
 
 	for (Entry<String, Boolean> one : res.getPermissions().getFlags().entrySet()) {
-	    if (flags.contains(one.getKey()))
+	    if (flags.contains(one.getKey())) {
 		resFlags.put(one.getKey(), one.getValue());
+	    }
 	}
 
 	for (Entry<String, Boolean> one : globalFlags.entrySet()) {
-
 	    String fname = one.getKey();
 
 	    Flags flag = Flags.getFlag(fname);
@@ -169,8 +168,9 @@ public class SetFlag {
 	    if (flag != null && !flag.isGlobalyEnabled())
 		continue;
 
-	    if (!flags.contains(one.getKey()))
+	    if (!flags.contains(one.getKey())) {
 		continue;
+	    }
 
 	    if (resFlags.containsKey(one.getKey()))
 		TempPermMap.put(one.getKey(), resFlags.get(one.getKey()) ? FlagState.TRUE : FlagState.FALSE);
@@ -238,7 +238,11 @@ public class SetFlag {
 		MiscInfo.removeEnchantment(Enchantment.LUCK);
 
 	    ItemMeta MiscInfoMeta = MiscInfo.getItemMeta();
-	    MiscInfoMeta.setDisplayName(ChatColor.GREEN + one.getKey());
+	    String flagName = one.getKey();
+	    Flags flag = Flags.getFlag(flagName);
+	    if (flag != null)
+		flagName = flag.getName();
+	    MiscInfoMeta.setDisplayName(ChatColor.GREEN + flagName);
 
 	    List<String> lore = new ArrayList<String>();
 
@@ -256,8 +260,8 @@ public class SetFlag {
 	    }
 	    lore.add(Residence.getInstance().msg(lm.General_FlagState, variable));
 
-	    if (description.containsKey(one.getKey()))
-		lore.addAll(description.get(one.getKey()));
+	    if (description.containsKey(flag))
+		lore.addAll(description.get(flag));
 
 	    lore.addAll(Residence.getInstance().msgL(lm.Gui_Actions));
 
@@ -292,7 +296,7 @@ public class SetFlag {
     public void recalculatePlayer(ClaimedResidence res) {
 	Map<String, Boolean> globalFlags = new HashMap<String, Boolean>();
 	for (Flags oneFlag : Flags.values()) {
-	    globalFlags.put(oneFlag.getName(), oneFlag.isEnabled());
+	    globalFlags.put(oneFlag.toString(), oneFlag.isEnabled());
 	}
 
 	if (flags == null)
@@ -390,7 +394,11 @@ public class SetFlag {
 		MiscInfo.removeEnchantment(Enchantment.LUCK);
 
 	    ItemMeta MiscInfoMeta = MiscInfo.getItemMeta();
-	    MiscInfoMeta.setDisplayName(ChatColor.GREEN + one.getKey());
+	    String flagName = one.getKey();
+	    Flags flag = Flags.getFlag(flagName);
+	    if (flag != null)
+		flagName = flag.getName();
+	    MiscInfoMeta.setDisplayName(ChatColor.GREEN + flagName);
 
 	    List<String> lore = new ArrayList<String>();
 
@@ -408,8 +416,8 @@ public class SetFlag {
 	    }
 	    lore.add(Residence.getInstance().msg(lm.General_FlagState, variable));
 
-	    if (description.containsKey(one.getKey()))
-		lore.addAll(description.get(one.getKey()));
+	    if (description.containsKey(flag))
+		lore.addAll(description.get(flag));
 
 	    lore.addAll(Residence.getInstance().msgL(lm.Gui_Actions));
 

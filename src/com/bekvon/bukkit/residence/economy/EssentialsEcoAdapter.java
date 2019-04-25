@@ -1,5 +1,7 @@
 package com.bekvon.bukkit.residence.economy;
 
+import org.bukkit.entity.Player;
+
 import com.bekvon.bukkit.residence.Residence;
 import com.earth2me.essentials.Essentials;
 import com.earth2me.essentials.api.Economy;
@@ -12,9 +14,21 @@ public class EssentialsEcoAdapter implements EconomyInterface {
 
     public EssentialsEcoAdapter(Essentials p) {
 	plugin = p;
-	String serverland = Residence.getInstance().getServerLandname();
+	String serverland = Residence.getInstance().getServerLandName();
 	if (!Economy.playerExists(serverland)) {
 	    Economy.createNPC(serverland);
+	}
+    }
+
+    @Override
+    public double getBalance(Player player) {
+	try {
+	    if (Economy.playerExists(player.getName())) {
+		return Economy.getMoney(player.getName());
+	    }
+	    return 0;
+	} catch (UserDoesNotExistException ex) {
+	    return 0;
 	}
     }
 

@@ -13,7 +13,6 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
 import com.bekvon.bukkit.residence.Residence;
-import com.bekvon.bukkit.residence.Siege.ResidenceSiege;
 import com.bekvon.bukkit.residence.containers.Flags;
 import com.bekvon.bukkit.residence.containers.ResidencePlayer;
 import com.bekvon.bukkit.residence.containers.lm;
@@ -52,7 +51,7 @@ public class ResidencePermissions extends FlagPermissions {
 
     @Override
     public boolean playerHas(Player player, Flags flag, boolean def) {
-	return playerHas(player, flag.getName(), def);
+	return playerHas(player, flag.toString(), def);
     }
 
     @Deprecated
@@ -61,7 +60,7 @@ public class ResidencePermissions extends FlagPermissions {
     }
 
     public boolean playerHas(String player, Flags flag, boolean def) {
-	return playerHas(player, flag.getName(), def);
+	return playerHas(player, flag.toString(), def);
     }
 
     @Deprecated
@@ -103,7 +102,7 @@ public class ResidencePermissions extends FlagPermissions {
     public boolean playerHas(Player player, String world, Flags flag, boolean def) {
 	if (player == null)
 	    return false;
-	ResidenceFlagCheckEvent fc = new ResidenceFlagCheckEvent(residence, flag.getName(), FlagType.PLAYER, player.getName(), def);
+	ResidenceFlagCheckEvent fc = new ResidenceFlagCheckEvent(residence, flag.toString(), FlagType.PLAYER, player.getName(), def);
 	Residence.getInstance().getServ().getPluginManager().callEvent(fc);
 	if (fc.isOverriden())
 	    return fc.getOverrideValue();
@@ -173,7 +172,7 @@ public class ResidencePermissions extends FlagPermissions {
 
     @Override
     public boolean has(Flags flag, boolean def) {
-	return has(flag.getName(), def);
+	return has(flag.toString(), def);
     }
 
     @Override
@@ -278,6 +277,9 @@ public class ResidencePermissions extends FlagPermissions {
     }
 
     private boolean checkCanSetFlag(CommandSender sender, String flag, FlagState state, boolean globalflag, boolean resadmin) {
+	Flags f = Flags.getFlag(flag);
+	if (f != null)
+	    flag = f.toString();
 	if (!checkValidFlag(flag, globalflag)) {
 	    Residence.getInstance().msg(sender, lm.Invalid_Flag);
 	    return false;
@@ -312,6 +314,10 @@ public class ResidencePermissions extends FlagPermissions {
 	    return false;
 	}
 
+	Flags f = Flags.getFlag(flag);
+	if (f != null)
+	    flag = f.toString();
+
 	if (validFlagGroups.containsKey(flag))
 	    return this.setFlagGroupOnPlayer(sender, targetPlayer, flag, flagstate, resadmin);
 	FlagState state = FlagPermissions.stringToFlagState(flagstate);
@@ -331,6 +337,11 @@ public class ResidencePermissions extends FlagPermissions {
     }
 
     public boolean setGroupFlag(Player player, String group, String flag, String flagstate, boolean resadmin) {
+
+	Flags f = Flags.getFlag(flag);
+	if (f != null)
+	    flag = f.toString();
+
 	group = group.toLowerCase();
 	if (validFlagGroups.containsKey(flag))
 	    return this.setFlagGroupOnGroup(player, flag, group, flagstate, resadmin);
@@ -363,6 +374,11 @@ public class ResidencePermissions extends FlagPermissions {
     }
 
     public boolean setFlag(CommandSender sender, String flag, FlagState state, boolean resadmin, boolean inform) {
+
+	Flags f = Flags.getFlag(flag);
+	if (f != null)
+	    flag = f.toString();
+
 	if (validFlagGroups.containsKey(flag))
 	    return this.setFlagGroup(sender, flag, state, resadmin);
 
@@ -494,6 +510,20 @@ public class ResidencePermissions extends FlagPermissions {
 	}
     }
 
+    public void applyDefaultRentedFlags() {
+	if (!this.residence.isRented())
+	    return;
+	FlagPermissions dflags = Residence.getInstance().getConfigManager().getGlobalRentedDefaultFlags();
+	Map<String, Boolean> dgflags = dflags.getFlags();
+	if (this.residence.rentedland == null || this.residence.rentedland.player == null)
+	    return;
+	this.removeAllPlayerFlags(this.residence.rentedland.player);
+	String player = this.residence.rentedland.player;
+	for (Entry<String, Boolean> entry : dgflags.entrySet()) {
+	    this.setPlayerFlag(player, entry.getKey(), entry.getValue() ? FlagState.TRUE : FlagState.FALSE);
+	}
+    }
+
     public boolean setOwner(Player player, boolean resetFlags) {
 
 	ResidenceOwnerChangeEvent ownerchange = new ResidenceOwnerChangeEvent(residence, player);
@@ -531,7 +561,7 @@ public class ResidencePermissions extends FlagPermissions {
 	if (rPlayer != null)
 	    this.ownerUUID = rPlayer.getUuid();
 
-	if (newOwner.equalsIgnoreCase("Server Land") || newOwner.equalsIgnoreCase(Residence.getInstance().getServerLandname())) {
+	if (newOwner.equalsIgnoreCase("Server Land") || newOwner.equalsIgnoreCase(Residence.getInstance().getServerLandName())) {
 	    ownerUUID = UUID.fromString(Residence.getInstance().getServerLandUUID());// the UUID for server owned land
 	} else {
 	    UUID playerUUID = Residence.getInstance().getPlayerUUID(newOwner);
@@ -549,7 +579,7 @@ public class ResidencePermissions extends FlagPermissions {
 	if (Residence.getInstance().getConfigManager().isOfflineMode())
 	    return ownerLastKnownName;
 	if (ownerUUID.toString().equals(Residence.getInstance().getServerLandUUID())) //check for server land
-	    return Residence.getInstance().getServerLandname();
+	    return Residence.getInstance().getServerLandName();
 	String name = Residence.getInstance().getPlayerName(ownerUUID);//try to find the owner's name
 	if (name == null)
 	    return ownerLastKnownName;//return last known if we cannot find it
@@ -600,9 +630,9 @@ public class ResidencePermissions extends FlagPermissions {
 	    if (newperms.ownerLastKnownName == null)
 		return newperms;
 
-	    if (newperms.ownerLastKnownName.equalsIgnoreCase("Server land") || newperms.ownerLastKnownName.equalsIgnoreCase(Residence.getInstance().getServerLandname())) {
+	    if (newperms.ownerLastKnownName.equalsIgnoreCase("Server land") || newperms.ownerLastKnownName.equalsIgnoreCase(Residence.getInstance().getServerLandName())) {
 		newperms.ownerUUID = UUID.fromString(Residence.getInstance().getServerLandUUID());//UUID for server land
-		newperms.ownerLastKnownName = Residence.getInstance().getServerLandname();
+		newperms.ownerLastKnownName = Residence.getInstance().getServerLandName();
 	    } else if (newperms.ownerUUID.toString().equals(Residence.getInstance().getTempUserUUID())) //check for fake UUID
 	    {
 		UUID realUUID = Residence.getInstance().getPlayerUUID(newperms.ownerLastKnownName);//try to find the real UUID of the player if possible now
@@ -618,7 +648,7 @@ public class ResidencePermissions extends FlagPermissions {
 		newperms.ownerUUID = UUID.fromString(Residence.getInstance().getTempUserUUID());//set fake UUID until we can find real one for last known player
 	} else {
 	    newperms.ownerUUID = UUID.fromString(Residence.getInstance().getServerLandUUID());//cant determine owner name or UUID... setting zero UUID which is server land
-	    newperms.ownerLastKnownName = Residence.getInstance().getServerLandname();
+	    newperms.ownerLastKnownName = Residence.getInstance().getServerLandName();
 	}
 	newperms.world = worldName;
 	FlagPermissions.load(root, newperms);

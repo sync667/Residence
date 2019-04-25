@@ -5,6 +5,8 @@ import org.bukkit.ChatColor;
 import org.bukkit.Material;
 import org.bukkit.World;
 
+import com.bekvon.bukkit.cmiLib.CMIChatColor;
+import com.bekvon.bukkit.cmiLib.RawMessage;
 import com.bekvon.bukkit.residence.Residence;
 import com.bekvon.bukkit.residence.ResidenceCommandListener;
 import com.bekvon.bukkit.residence.containers.Flags;
@@ -12,8 +14,7 @@ import com.bekvon.bukkit.residence.containers.HelpLines;
 import com.bekvon.bukkit.residence.containers.lm;
 import com.bekvon.bukkit.residence.protection.ClaimedResidence;
 import com.bekvon.bukkit.residence.protection.FlagPermissions;
-
-import cmiLib.RawMessage;
+import com.bekvon.bukkit.residence.utils.Debug;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -80,11 +81,12 @@ public class HelpEntry {
 	String separator = Residence.getInstance().msg(lm.InformationPage_SmallSeparator);
 
 	sender.sendMessage(separator + " " + Residence.getInstance().msg(lm.General_HelpPageHeader, path, page, pi.getTotalPages()) + " " + separator);
+
 	for (int i = pi.getStart(); i <= pi.getEnd(); i++) {
 	    if (helplines.get(i).getCommand() != null) {
 		HelpEntry sub = this.getSubEntry(helplines.get(i).getCommand());
 
-		String desc = "";
+		String desc = "&6";
 		int y = 0;
 		for (String one : sub.lines) {
 		    desc += one;
@@ -98,11 +100,11 @@ public class HelpEntry {
 		    path = path.replace("/res ", "/resadmin ");
 
 		RawMessage rm = new RawMessage();
-		rm.add(helplines.get(i).getDesc(), desc, null, path + helplines.get(i).getCommand());
+		rm.add(CMIChatColor.translateAlternateColorCodes("&6" + helplines.get(i).getDesc()), desc, null, path + helplines.get(i).getCommand());
 		rm.show(sender);
 
 	    } else
-		sender.sendMessage(helplines.get(i).getDesc());
+		sender.sendMessage(CMIChatColor.translateAlternateColorCodes("&6" + helplines.get(i).getDesc()));
 
 	}
 
@@ -147,6 +149,11 @@ public class HelpEntry {
 			continue;
 		    }
 
+		    String flagName = entry.getName();
+		    Flags flag = Flags.getFlag(entry.getName());
+		    if (flag != null)
+			flagName = flag.getName();
+
 		    String desc = entry.getDescription();
 
 		    switch (entry.getName().toLowerCase()) {
@@ -159,7 +166,7 @@ public class HelpEntry {
 		    }
 
 		    // adding flag name and description for later sorting
-		    unsortMap.put(entry.getName(), Residence.getInstance().msg(lm.InformationPage_FlagsList, entry.getName(), desc));
+		    unsortMap.put(entry.getName(), Residence.getInstance().msg(lm.InformationPage_FlagsList, flagName, desc));
 		    continue;
 		}
 	    }
@@ -355,7 +362,7 @@ public class HelpEntry {
 				subCommands.add(oneRes.getName());
 			    }
 			} else {
-			    ArrayList<String> resList = Residence.getInstance().getResidenceManager().getResidenceList(Residence.getInstance().getServerLandname(), true, false, false);
+			    ArrayList<String> resList = Residence.getInstance().getResidenceManager().getResidenceList(Residence.getInstance().getServerLandName(), true, false, false);
 			    if (resList.size() > 0)
 				subCommands.addAll(resList);
 			}
@@ -376,10 +383,18 @@ public class HelpEntry {
 			}
 			break;
 		    case "[flag]":
-			for (Flags one : Flags.values()) {
-			    if (!one.isGlobalyEnabled())
-				continue;
-			    subCommands.add(one.getName());
+
+			for (String one : Residence.getInstance().getPermissionManager().getAllFlags().getAllPosibleFlags()) {
+
+			    Flags f = Flags.getFlag(one);
+
+			    if (f != null) {
+				if (!f.isGlobalyEnabled())
+				    continue;
+				subCommands.add(f.getName());
+			    }
+			    subCommands.add(one);
+
 			}
 			break;
 		    case "[material]":
@@ -404,7 +419,7 @@ public class HelpEntry {
 		}
 	    }
 
-	    String command = tempmeinPath.getCurrentPath().replace("CommandHelp.SubCommands.", "").replace(".SubCommands.", " ");
+//	    String command = tempmeinPath.getCurrentPath().replace("CommandHelp.SubCommands.", "").replace(".SubCommands.", " ");
 	    if (subCommands.size() > 0) {
 		return subCommands;
 	    }

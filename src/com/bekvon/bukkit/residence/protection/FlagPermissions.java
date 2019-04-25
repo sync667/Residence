@@ -21,15 +21,14 @@ import org.bukkit.entity.Player;
 import org.bukkit.permissions.Permission;
 import org.bukkit.permissions.PermissionDefault;
 
+import com.bekvon.bukkit.cmiLib.RawMessage;
+import com.bekvon.bukkit.cmiLib.ItemManager.CMIMaterial;
 import com.bekvon.bukkit.residence.Residence;
 import com.bekvon.bukkit.residence.containers.Flags;
 import com.bekvon.bukkit.residence.containers.MinimizeFlags;
 import com.bekvon.bukkit.residence.containers.ResidencePlayer;
 import com.bekvon.bukkit.residence.containers.lm;
 import com.bekvon.bukkit.residence.permissions.PermissionGroup;
-
-import cmiLib.ItemManager.CMIMaterial;
-import cmiLib.VersionChecker.Version;
 
 public class FlagPermissions {
 
@@ -86,6 +85,12 @@ public class FlagPermissions {
 	if (validFlagGroups.containsKey(flag)) {
 	    validFlagGroups.remove(flag);
 	}
+
+	// Checking custom flag
+	Flags f = Flags.getFlag(flag);
+	if (f == null) {
+	    Residence.getInstance().getPermissionManager().getAllFlags().setFlag(flag, FlagState.TRUE);
+	}
     }
 
     public static void addPlayerOrGroupOnlyFlag(Flags flag) {
@@ -100,6 +105,12 @@ public class FlagPermissions {
 	if (validFlagGroups.containsKey(flag)) {
 	    validFlagGroups.remove(flag);
 	}
+
+	// Checking custom flag
+	Flags f = Flags.getFlag(flag);
+	if (f == null) {
+	    Residence.getInstance().getPermissionManager().getAllFlags().setFlag(flag, FlagState.TRUE);
+	}
     }
 
     public static void addResidenceOnlyFlag(Flags flag) {
@@ -113,6 +124,11 @@ public class FlagPermissions {
 	}
 	if (validFlagGroups.containsKey(flag)) {
 	    validFlagGroups.remove(flag);
+	}
+	// Checking custom flag
+	Flags f = Flags.getFlag(flag);
+	if (f == null) {
+	    Residence.getInstance().getPermissionManager().getAllFlags().setFlag(flag, FlagState.TRUE);
 	}
     }
 
@@ -164,72 +180,48 @@ public class FlagPermissions {
 
 	Residence.getInstance().getConfigManager().UpdateGroupedFlagsFile();
 
-	// All these flags are moved to flags.yml as of 2.9.11.0 version for option to customize them
-//	addFlagToFlagGroup("redstone", "note");
-//	addFlagToFlagGroup("redstone", "pressure");
-//	addFlagToFlagGroup("redstone", "lever");
-//	addFlagToFlagGroup("redstone", "button");
-//	addFlagToFlagGroup("redstone", "diode");
-//	addFlagToFlagGroup("craft", "brew");
-//	addFlagToFlagGroup("craft", "table");
-//	addFlagToFlagGroup("craft", "enchant");
-//	addFlagToFlagGroup("trusted", "use");
-//	addFlagToFlagGroup("trusted", "tp");
-//	addFlagToFlagGroup("trusted", "build");
-//	addFlagToFlagGroup("trusted", "container");
-//	addFlagToFlagGroup("trusted", "bucket");
-//	addFlagToFlagGroup("trusted", "move");
-//	addFlagToFlagGroup("trusted", "leash");
-//	addFlagToFlagGroup("trusted", "animalkilling");
-//	addFlagToFlagGroup("trusted", "mobkilling");
-//	addFlagToFlagGroup("trusted", "shear");
-//	addFlagToFlagGroup("trusted", "chat");
-//	addFlagToFlagGroup("fire", "ignite");
-//	addFlagToFlagGroup("fire", "firespread");
-
 	addMaterialToUseFlag(CMIMaterial.REPEATER.getMaterial(), Flags.diode);
-//	addMaterialToUseFlag(CMIMaterial.DIODE_BLOCK_OFF.getMaterial(), Flags.diode);
-//	addMaterialToUseFlag(CMIMaterial.DIODE_BLOCK_ON.getMaterial(), Flags.diode);
 	addMaterialToUseFlag(CMIMaterial.COMPARATOR.getMaterial(), Flags.diode);
-//	addMaterialToUseFlag(CMIMaterial.REDSTONE_COMPARATOR_OFF.getMaterial(), Flags.diode);
-//	addMaterialToUseFlag(CMIMaterial.REDSTONE_COMPARATOR_ON.getMaterial(), Flags.diode);
-	addMaterialToUseFlag(Material.DAYLIGHT_DETECTOR, Flags.diode);
+
 	addMaterialToUseFlag(CMIMaterial.CRAFTING_TABLE.getMaterial(), Flags.table);
-	addMaterialToUseFlag(CMIMaterial.OAK_DOOR.getMaterial(), Flags.door);
-
-	Residence.getInstance().getNms().addDefaultFlags(matUseFlagList);
-
-//	addMaterialToUseFlag(CMIMaterial.FENCE_GATE, Flags.door);
-//	addMaterialToUseFlag(Material.NETHER_FENCE, Flags.door);
-//	addMaterialToUseFlag(Material.TRAP_DOOR, Flags.door);
-	addMaterialToUseFlag(CMIMaterial.ENCHANTING_TABLE.getMaterial(), Flags.enchant);
-	addMaterialToUseFlag(Material.STONE_BUTTON, Flags.button);
-	addMaterialToUseFlag(Material.LEVER, Flags.lever);
 
 	for (CMIMaterial one : CMIMaterial.values()) {
-	    if (!one.isBed())
-		continue;
-	    addMaterialToUseFlag(one.getMaterial(), Flags.bed);
+	    if (one.isDoor() && one.getMaterial() != null)
+		matUseFlagList.put(one.getMaterial(), Flags.door);
+
+	    if (one.isGate() && one.getMaterial() != null)
+		matUseFlagList.put(one.getMaterial(), Flags.door);
+
+	    if (one.isTrapDoor() && one.getMaterial() != null)
+		matUseFlagList.put(one.getMaterial(), Flags.door);
+
+	    if (one.isShulkerBox() && one.getMaterial() != null)
+		matUseFlagList.put(one.getMaterial(), Flags.container);
+
+	    if (one.isButton() && one.getMaterial() != null)
+		matUseFlagList.put(one.getMaterial(), Flags.button);
+
+	    if (one.isBed() && one.getMaterial() != null)
+		matUseFlagList.put(one.getMaterial(), Flags.bed);
+
+	    if (one.isPottedFlower() && one.getMaterial() != null)
+		matUseFlagList.put(one.getMaterial(), Flags.flowerpot);
 	}
 
+	if (CMIMaterial.DAYLIGHT_DETECTOR.getMaterial() != null)
+	    matUseFlagList.put(CMIMaterial.DAYLIGHT_DETECTOR.getMaterial(), Flags.diode);
+
+	if (CMIMaterial.ENCHANTING_TABLE.getMaterial() != null)
+	    addMaterialToUseFlag(CMIMaterial.ENCHANTING_TABLE.getMaterial(), Flags.enchant);
+
+	addMaterialToUseFlag(Material.LEVER, Flags.lever);
 	addMaterialToUseFlag(Material.BREWING_STAND, Flags.brew);
 	addMaterialToUseFlag(Material.CAKE, Flags.cake);
 	addMaterialToUseFlag(Material.NOTE_BLOCK, Flags.note);
 	addMaterialToUseFlag(Material.DRAGON_EGG, Flags.egg);
 	addMaterialToUseFlag(CMIMaterial.COMMAND_BLOCK.getMaterial(), Flags.commandblock);
-	addMaterialToUseFlag(CMIMaterial.OAK_BUTTON.getMaterial(), Flags.button);
 	addMaterialToUseFlag(Material.ANVIL, Flags.anvil);
 	addMaterialToUseFlag(Material.FLOWER_POT, Flags.flowerpot);
-
-	if (Version.isCurrentEqualOrHigher(Version.v1_13_R1))
-	    for (CMIMaterial one : CMIMaterial.values()) {
-		if (!one.isPottedFlower())
-		    continue;
-		if (one.getMaterial() == null)
-		    continue;
-		addMaterialToUseFlag(one.getMaterial(), Flags.flowerpot);
-	    }
-
 	addMaterialToUseFlag(Material.BEACON, Flags.beacon);
 	addMaterialToUseFlag(Material.JUKEBOX, Flags.container);
 	addMaterialToUseFlag(Material.CHEST, Flags.container);
@@ -448,7 +440,7 @@ public class FlagPermissions {
 
 	ResidencePlayer resPlayer = Residence.getInstance().getPlayerManager().getResidencePlayer(player);
 	PermissionGroup group = resPlayer.getGroup();
-	return this.playerCheck(player.getName(), flag.getName(), this.groupCheck(group, flag.getName(), this.has(flag, def)));
+	return this.playerCheck(player.getName(), flag.toString(), this.groupCheck(group, flag.toString(), this.has(flag, def)));
     }
 
     public boolean playerHas(Player player, String world, Flags flag, boolean def) {
@@ -457,7 +449,7 @@ public class FlagPermissions {
 
 	ResidencePlayer resPlayer = Residence.getInstance().getPlayerManager().getResidencePlayer(player);
 	PermissionGroup group = resPlayer.getGroup(world);
-	return this.playerCheck(player.getName(), flag.getName(), this.groupCheck(group, flag.getName(), this.has(flag, def)));
+	return this.playerCheck(player.getName(), flag.toString(), this.groupCheck(group, flag.toString(), this.has(flag, def)));
     }
 
 //    public boolean playerHas(String player, String world, Flags flag, boolean def) {
@@ -527,8 +519,8 @@ public class FlagPermissions {
     }
 
     public boolean has(Flags flag, boolean def, boolean checkParent) {
-	if (cuboidFlags.containsKey(flag.getName())) {
-	    return cuboidFlags.get(flag.getName());
+	if (cuboidFlags.containsKey(flag.toString())) {
+	    return cuboidFlags.get(flag.toString());
 	}
 	if (checkParent && parent != null) {
 	    return parent.has(flag, def);
@@ -781,7 +773,7 @@ public class FlagPermissions {
 	    if (keyset.length() == 36) {
 		String uuid = keyset;
 		if (uuid.equalsIgnoreCase(Residence.getInstance().getServerLandUUID()))
-		    converts.put(uuid, Residence.getInstance().getServerLandname());
+		    converts.put(uuid, Residence.getInstance().getServerLandName());
 		else {
 		    String name = Residence.getInstance().getPlayerName(uuid);
 		    if (name != null)
@@ -858,6 +850,12 @@ public class FlagPermissions {
 	    Iterator<Entry<String, Boolean>> it = set.iterator();
 	    int i = -1;
 	    int t = 0;
+
+	    String haveColor = Residence.getInstance().getLM().getMessage(lm.Flag_haveColor);
+	    String denyColor = Residence.getInstance().getLM().getMessage(lm.Flag_denyColor);
+	    String havePrefix = Residence.getInstance().getLM().getMessage(lm.Flag_havePrefix);
+	    String denyPrefix = Residence.getInstance().getLM().getMessage(lm.Flag_denyPrefix);
+
 	    while (it.hasNext()) {
 		Entry<String, Boolean> next = it.next();
 		String fname = next.getKey();
@@ -866,7 +864,8 @@ public class FlagPermissions {
 
 		if (flag != null && !flag.isGlobalyEnabled())
 		    continue;
-
+		if (flag != null)
+		    fname = flag.getName();
 		i++;
 		t++;
 
@@ -880,12 +879,12 @@ public class FlagPermissions {
 		}
 
 		if (next.getValue()) {
-		    sbuild.append("&2").append("+").append(flag);
+		    sbuild.append(haveColor).append(havePrefix).append(fname);
 		    if (it.hasNext()) {
 			sbuild.append(" ");
 		    }
 		} else {
-		    sbuild.append("&3").append("-").append(flag);
+		    sbuild.append(denyColor).append(denyPrefix).append(fname);
 		    if (it.hasNext()) {
 			sbuild.append(" ");
 		    }
@@ -907,7 +906,12 @@ public class FlagPermissions {
 	return this.getPlayerFlags(player, false);
     }
 
+    @Deprecated
     public Set<String> getposibleFlags() {
+	return getAllPosibleFlags();
+    }
+
+    public static Set<String> getAllPosibleFlags() {
 	Set<String> t = new HashSet<String>();
 	t.addAll(FlagPermissions.validFlags);
 	t.addAll(FlagPermissions.validPlayerFlags);
@@ -919,12 +923,12 @@ public class FlagPermissions {
     }
 
     public List<String> getPosibleFlags(Player player, boolean residence, boolean resadmin) {
-	List<String> flags = new ArrayList<String>();
+	Set<String> flags = new HashSet<String>();
 	for (Entry<String, Boolean> one : Residence.getInstance().getPermissionManager().getAllFlags().getFlags().entrySet()) {
 	    if (!one.getValue() && !resadmin && !player.hasPermission(new Permission("residence.flag." + one.getKey().toLowerCase(), PermissionDefault.FALSE)))
 		continue;
 
-	    if (!residence && !getposibleFlags().contains(one.getKey()))
+	    if (!residence && !getAllPosibleFlags().contains(one.getKey()))
 		continue;
 
 	    String fname = one.getKey();
@@ -937,7 +941,7 @@ public class FlagPermissions {
 	    flags.add(one.getKey());
 	}
 
-	return flags;
+	return new ArrayList<String>(flags);
     }
 
     public String listPlayerFlags(String player) {
@@ -953,17 +957,32 @@ public class FlagPermissions {
 	if (flags == null)
 	    return "none";
 	Set<Entry<String, Boolean>> set = flags.entrySet();
+
+	String haveColor = Residence.getInstance().getLM().getMessage(lm.Flag_haveColor);
+	String denyColor = Residence.getInstance().getLM().getMessage(lm.Flag_denyColor);
+	String havePrefix = Residence.getInstance().getLM().getMessage(lm.Flag_havePrefix);
+	String denyPrefix = Residence.getInstance().getLM().getMessage(lm.Flag_denyPrefix);
+
 	synchronized (flags) {
 	    Iterator<Entry<String, Boolean>> it = set.iterator();
 	    while (it.hasNext()) {
 		Entry<String, Boolean> next = it.next();
+
+		String fname = next.getKey();
+
+		Flags flag = Flags.getFlag(next.getKey());
+		if (flag != null && !flag.isGlobalyEnabled())
+		    continue;
+		if (flag != null)
+		    fname = flag.getName();
+
 		if (next.getValue()) {
-		    sbuild.append("&2").append("+").append(next.getKey());
+		    sbuild.append(haveColor).append(havePrefix).append(fname);
 		    if (it.hasNext()) {
 			sbuild.append(" ");
 		    }
 		} else {
-		    sbuild.append("&3").append("-").append(next.getKey());
+		    sbuild.append(denyColor).append(denyPrefix).append(fname);
 		    if (it.hasNext()) {
 			sbuild.append(" ");
 		    }
@@ -1033,7 +1052,7 @@ public class FlagPermissions {
 			next = this.cachedPlayerNameUUIDs.get(next);
 		}
 
-		if (next.equalsIgnoreCase(Residence.getInstance().getServerLandname()))
+		if (next.equalsIgnoreCase(Residence.getInstance().getServerLandName()))
 		    continue;
 
 		if (!perms.equals("none")) {
@@ -1044,16 +1063,19 @@ public class FlagPermissions {
 	return sbuild.toString();
     }
 
-    public String listPlayersFlagsRaw(String player, String text) {
-	StringBuilder sbuild = new StringBuilder();
-
-	sbuild.append("[\"\",");
-	sbuild.append("{\"text\":\"" + text + "\"}");
-
+    public RawMessage listPlayersFlagsRaw(String player, String text) {
+	RawMessage rm = new RawMessage();
+	rm.add(text);
 	Set<Entry<String, Map<String, Boolean>>> set = playerFlags.entrySet();
+
 	synchronized (set) {
 	    Iterator<Entry<String, Map<String, Boolean>>> it = set.iterator();
 	    boolean random = true;
+
+	    String ownColor = Residence.getInstance().getLM().getMessage(lm.Flag_ownColor);
+	    String p1Color = Residence.getInstance().getLM().getMessage(lm.Flag_p1Color);
+	    String p2Color = Residence.getInstance().getLM().getMessage(lm.Flag_p2Color);
+
 	    while (it.hasNext()) {
 		Entry<String, Map<String, Boolean>> nextEnt = it.next();
 		String next = nextEnt.getKey();
@@ -1072,85 +1094,33 @@ public class FlagPermissions {
 			next = this.cachedPlayerNameUUIDs.get(next);
 		}
 
-		if (next.equalsIgnoreCase(Residence.getInstance().getServerLandname()))
+		if (next.equalsIgnoreCase(Residence.getInstance().getServerLandName()))
 		    continue;
 
 		if (!perms.equals("none")) {
-		    sbuild.append(",");
-
 		    if (random) {
 			random = false;
 			if (player.equals(next))
-			    next = "&4" + next + "&r";
+			    next = ownColor + next + "&r";
 			else
-			    next = "&2" + next + "&r";
+			    next = p2Color + next + "&r";
 		    } else {
 			random = true;
 			if (player.equals(next))
-			    next = "&4" + next + "&r";
+			    next = ownColor + next + "&r";
 			else
-			    next = "&3" + next + "&r";
+			    next = p1Color + next + "&r";
 		    }
-		    sbuild.append(ConvertToRaw(next, perms));
+		    rm.add(next, splitBy(5, perms));
+		    rm.add(" ");
 		}
 	    }
 	}
 
-	sbuild.append("]");
-	return ChatColor.translateAlternateColorCodes('&', sbuild.toString());
+	return rm;
     }
 
-    public String listOtherPlayersFlagsRaw(String text, String player) {
-//	player = player.toLowerCase();
-	String uuids = Residence.getInstance().getPlayerUUIDString(player);
-	StringBuilder sbuild = new StringBuilder();
-
-	sbuild.append("[\"\",");
-	sbuild.append("{\"text\":\"" + text + "\"}");
-
-	Set<Entry<String, Map<String, Boolean>>> set = playerFlags.entrySet();
-	synchronized (set) {
-	    Iterator<Entry<String, Map<String, Boolean>>> it = set.iterator();
-	    boolean random = true;
-	    while (it.hasNext()) {
-		Entry<String, Map<String, Boolean>> nextEnt = it.next();
-		String next = nextEnt.getKey();
-		if (!Residence.getInstance().getConfigManager().isOfflineMode() && !next.equals(player) && !next.equals(uuids) || Residence.getInstance().getConfigManager().isOfflineMode() && !next
-		    .equals(player)) {
-		    String perms = printPlayerFlags(nextEnt.getValue());
-		    if (next.length() == 36) {
-			String resolvedName = Residence.getInstance().getPlayerName(next);
-			if (resolvedName != null) {
-			    try {
-				UUID uuid = UUID.fromString(next);
-				this.cachedPlayerNameUUIDs.put(uuid, resolvedName);
-			    } catch (Exception e) {
-			    }
-			    next = resolvedName;
-			} else if (this.cachedPlayerNameUUIDs.containsKey(next))
-			    next = this.cachedPlayerNameUUIDs.get(next);
-		    }
-		    if (!perms.equals("none")) {
-			sbuild.append(",");
-
-			if (random) {
-			    random = false;
-			    next = "&2" + next + "&r";
-			} else {
-			    random = true;
-			    next = "&3" + next + "&r";
-			}
-			sbuild.append(ConvertToRaw(next, perms));
-		    }
-		}
-	    }
-	}
-
-	sbuild.append("]");
-	return ChatColor.translateAlternateColorCodes('&', sbuild.toString());
-    }
-
-    protected String ConvertToRaw(String playerName, String perms) {
+    protected String splitBy(int by, String perms) {
 	if (perms.contains(" ")) {
 	    String[] splited = perms.split(" ");
 	    int i = 0;
@@ -1158,13 +1128,13 @@ public class FlagPermissions {
 	    for (String one : splited) {
 		i++;
 		perms += one + " ";
-		if (i >= 5) {
+		if (i >= by) {
 		    i = 0;
 		    perms += "\n";
 		}
 	    }
 	}
-	return "{\"text\":\"[" + playerName + "]\",\"hoverEvent\":{\"action\":\"show_text\",\"value\":{\"text\":\"\",\"extra\":[{\"text\":\"" + perms + "\"}]}}}";
+	return perms;
     }
 
     public String listGroupFlags() {
@@ -1195,17 +1165,23 @@ public class FlagPermissions {
 	    StringBuilder sbuild = new StringBuilder();
 	    Map<String, Boolean> get = groupFlags.get(group);
 	    Set<Entry<String, Boolean>> set = get.entrySet();
+
+	    String haveColor = Residence.getInstance().getLM().getMessage(lm.Flag_haveColor);
+	    String denyColor = Residence.getInstance().getLM().getMessage(lm.Flag_denyColor);
+	    String havePrefix = Residence.getInstance().getLM().getMessage(lm.Flag_havePrefix);
+	    String denyPrefix = Residence.getInstance().getLM().getMessage(lm.Flag_denyPrefix);
+
 	    synchronized (get) {
 		Iterator<Entry<String, Boolean>> it = set.iterator();
 		while (it.hasNext()) {
 		    Entry<String, Boolean> next = it.next();
 		    if (next.getValue()) {
-			sbuild.append("&2").append("+").append(next.getKey());
+			sbuild.append(haveColor).append(havePrefix).append(next.getKey());
 			if (it.hasNext()) {
 			    sbuild.append(" ");
 			}
 		    } else {
-			sbuild.append("&3").append("-").append(next.getKey());
+			sbuild.append(denyColor).append(denyPrefix).append(next.getKey());
 			if (it.hasNext()) {
 			    sbuild.append(" ");
 			}

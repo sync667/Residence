@@ -104,7 +104,18 @@ public enum lm {
     info_oneHour("&e%1 &6hour "),
     info_min("&e%1 &6min "),
     info_sec("&e%1 &6sec "),
-    
+
+    info_click("&7Click"),
+
+    server_land("Server_Land"),
+
+    Flag_ownColor("&4"),
+    Flag_p1Color("&2"),
+    Flag_p2Color("&a"),
+    Flag_haveColor("&2"),
+    Flag_havePrefix(""),
+    Flag_denyColor("&4"),
+    Flag_denyPrefix(""),
     Flag_Set("&eFlag (&6%1&e) set for &6%2 &eto &6%3 &estate"),
     Flag_SetFailed("&cYou dont have access to &6%1 &cflag"),
     Flag_CheckTrue("&eFlag &6%1 &eapplies to player &6%2 &efor residence &6%3&e, value = &6%4"),
@@ -174,6 +185,7 @@ public enum lm {
     Residence_TeleportNoFlag("&cYou dont have teleport access for that residence."),
     Residence_FlagDeny("&cYou dont have &6%1 &cpermission for Residence &6%2"),
     Residence_GiveLimits("&cCannot give residence to target player, because it is outside the target players limits."),
+    Residence_GiveConfirm("&7Click to confirm &6%1 &7residence transfer from &6%2 &7to &6%3"),
     Residence_Give("&eYou give residence &6%1 &eto player &6%2"),
     Residence_Recieve("&eYou have recieved residence &6%1 &efrom player &6%2"),
     Residence_ResList(" &a%1. &e%2 &e- &6%3 %4&6%5"),

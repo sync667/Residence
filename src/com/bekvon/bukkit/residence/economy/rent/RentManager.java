@@ -3,6 +3,7 @@ package com.bekvon.bukkit.residence.economy.rent;
 import org.bukkit.ChatColor;
 import org.bukkit.World;
 
+import com.bekvon.bukkit.cmiLib.RawMessage;
 import com.bekvon.bukkit.residence.Residence;
 import com.bekvon.bukkit.residence.api.MarketRentInterface;
 import com.bekvon.bukkit.residence.containers.ResidencePlayer;
@@ -15,8 +16,6 @@ import com.bekvon.bukkit.residence.protection.ClaimedResidence;
 import com.bekvon.bukkit.residence.protection.FlagPermissions.FlagState;
 import com.bekvon.bukkit.residence.text.help.PageInfo;
 import com.bekvon.bukkit.residence.utils.GetTime;
-
-import cmiLib.RawMessage;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -305,7 +304,7 @@ public class RentManager implements MarketRentInterface {
 
 		res.getPermissions().copyUserPermissions(res.getPermissions().getOwner(), player.getName());
 		res.getPermissions().clearPlayersFlags(res.getPermissions().getOwner());
-		res.getPermissions().setPlayerFlag(player.getName(), "admin", FlagState.TRUE);
+		res.getPermissions().applyDefaultRentedFlags();
 		plugin.msg(player, lm.Residence_RentSuccess, res.getName(), land.days);
 
 		if (plugin.getSchematicManager() != null &&

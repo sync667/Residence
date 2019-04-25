@@ -3,12 +3,14 @@ package com.bekvon.bukkit.residence.commands;
 import java.util.Arrays;
 
 import org.bukkit.ChatColor;
+import org.bukkit.command.BlockCommandSender;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
-import org.bukkit.command.ConsoleCommandSender;
+import org.bukkit.entity.Player;
+
+import com.bekvon.bukkit.cmiLib.ConfigReader;
 import com.bekvon.bukkit.residence.Residence;
 import com.bekvon.bukkit.residence.containers.CommandAnnotation;
-import com.bekvon.bukkit.residence.containers.ConfigReader;
 import com.bekvon.bukkit.residence.containers.cmd;
 
 public class removeworld implements cmd {
@@ -19,12 +21,11 @@ public class removeworld implements cmd {
 
 	if (args.length != 2)
 	    return false;
-
-	if (sender instanceof ConsoleCommandSender) {
-	    plugin.getResidenceManager().removeAllFromWorld(sender, args[1]);
-	    return true;
+	if (sender instanceof Player || sender instanceof BlockCommandSender) {
+	    sender.sendMessage(ChatColor.RED + "MUST be run from console.");
+	    return false;
 	}
-	sender.sendMessage(ChatColor.RED + "MUST be run from console.");
+	plugin.getResidenceManager().removeAllFromWorld(sender, args[1]);
 
 	return true;
     }

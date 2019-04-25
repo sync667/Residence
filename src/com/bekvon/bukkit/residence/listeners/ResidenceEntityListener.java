@@ -22,7 +22,6 @@ import org.bukkit.entity.Slime;
 import org.bukkit.entity.Tameable;
 import org.bukkit.entity.Vehicle;
 import org.bukkit.entity.Witch;
-import org.bukkit.entity.minecart.HopperMinecart;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
@@ -44,11 +43,13 @@ import org.bukkit.event.hanging.HangingBreakByEntityEvent;
 import org.bukkit.event.hanging.HangingBreakEvent;
 import org.bukkit.event.hanging.HangingBreakEvent.RemoveCause;
 import org.bukkit.event.hanging.HangingPlaceEvent;
-import org.bukkit.event.inventory.InventoryMoveItemEvent;
 import org.bukkit.event.vehicle.VehicleDestroyEvent;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.projectiles.ProjectileSource;
 
+import com.bekvon.bukkit.cmiLib.ActionBarTitleMessages;
+import com.bekvon.bukkit.cmiLib.ItemManager.CMIMaterial;
+import com.bekvon.bukkit.cmiLib.VersionChecker.Version;
 import com.bekvon.bukkit.residence.Residence;
 import com.bekvon.bukkit.residence.containers.Flags;
 import com.bekvon.bukkit.residence.containers.lm;
@@ -56,35 +57,12 @@ import com.bekvon.bukkit.residence.protection.ClaimedResidence;
 import com.bekvon.bukkit.residence.protection.FlagPermissions;
 import com.bekvon.bukkit.residence.protection.FlagPermissions.FlagCombo;
 
-import cmiLib.ActionBarTitleMessages;
-import cmiLib.ItemManager.CMIMaterial;
-
 public class ResidenceEntityListener implements Listener {
 
     Residence plugin;
 
     public ResidenceEntityListener(Residence plugin) {
 	this.plugin = plugin;
-    }
-
-    @SuppressWarnings("incomplete-switch")
-    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
-    public void onMinecartHopperItemMove(InventoryMoveItemEvent event) {
-	if (!(event.getInitiator().getHolder() instanceof HopperMinecart))
-	    return;
-	HopperMinecart hopper = (HopperMinecart) event.getInitiator().getHolder();
-	// disabling event on world
-	if (plugin.isDisabledWorldListener(hopper.getWorld()))
-	    return;
-	Block block = hopper.getLocation().getBlock();
-	switch (CMIMaterial.get(block)) {
-	case ACTIVATOR_RAIL:
-	case DETECTOR_RAIL:
-	case POWERED_RAIL:
-	case RAIL:
-	    return;
-	}
-	event.setCancelled(true);
     }
 
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
@@ -170,7 +148,7 @@ public class ResidenceEntityListener implements Listener {
 	    return;
 
 	if (res.getPermissions().playerHas(cause, Flags.animalkilling, FlagCombo.OnlyFalse)) {
-	    plugin.msg(cause, lm.Residence_FlagDeny, Flags.animalkilling.getName(), res.getName());
+	    plugin.msg(cause, lm.Residence_FlagDeny, Flags.animalkilling, res.getName());
 	    event.setCancelled(true);
 	}
     }
@@ -220,7 +198,7 @@ public class ResidenceEntityListener implements Listener {
 	    return;
 
 	if (res.getPermissions().playerHas(cause, Flags.animalkilling, FlagCombo.OnlyFalse)) {
-	    plugin.msg(cause, lm.Residence_FlagDeny, Flags.animalkilling.getName(), res.getName());
+	    plugin.msg(cause, lm.Residence_FlagDeny, Flags.animalkilling, res.getName());
 	    event.setCancelled(true);
 	}
     }
@@ -324,7 +302,7 @@ public class ResidenceEntityListener implements Listener {
 	    return;
 
 	if (res.getPermissions().playerHas(cause, Flags.vehicledestroy, FlagCombo.OnlyFalse)) {
-	    plugin.msg(cause, lm.Residence_FlagDeny, Flags.vehicledestroy.getName(), res.getName());
+	    plugin.msg(cause, lm.Residence_FlagDeny, Flags.vehicledestroy, res.getName());
 	    event.setCancelled(true);
 	}
     }
@@ -371,7 +349,7 @@ public class ResidenceEntityListener implements Listener {
 	    return;
 
 	if (res.getPermissions().playerHas(cause, Flags.mobkilling, FlagCombo.OnlyFalse)) {
-	    plugin.msg(cause, lm.Residence_FlagDeny, Flags.mobkilling.getName(), res.getName());
+	    plugin.msg(cause, lm.Residence_FlagDeny, Flags.mobkilling, res.getName());
 	    event.setCancelled(true);
 	}
     }
@@ -422,6 +400,30 @@ public class ResidenceEntityListener implements Listener {
 
 	FlagPermissions perms = plugin.getPermsByLoc(event.getLocation());
 	if (perms.has(Flags.witherspawn, FlagCombo.OnlyFalse)) {
+	    event.setCancelled(true);
+	    return;
+	}
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onPhantomSpawn(CreatureSpawnEvent event) {
+	if (Version.isCurrentLower(Version.v1_13_R1))
+	    return;
+	// Disabling listener if flag disabled globally
+	if (!Flags.phantomspawn.isGlobalyEnabled())
+	    return;
+	// disabling event on world
+	Entity ent = event.getEntity();
+	if (ent == null)
+	    return;
+	if (plugin.isDisabledWorldListener(ent.getWorld()))
+	    return;
+
+	if (ent.getType() != EntityType.PHANTOM)
+	    return;
+
+	FlagPermissions perms = plugin.getPermsByLoc(event.getLocation());
+	if (perms.has(Flags.phantomspawn, FlagCombo.OnlyFalse)) {
 	    event.setCancelled(true);
 	    return;
 	}
@@ -1278,17 +1280,20 @@ public class ResidenceEntityListener implements Listener {
 	if (event.getEntityType() == EntityType.ITEM_FRAME) {
 	    ItemFrame it = (ItemFrame) event.getEntity();
 	    if (it.getItem() != null) {
-		if (!perms.playerHas(player, Flags.container, true)) {
-		    event.setCancelled(true);
-		    plugin.msg(player, lm.Flag_Deny, Flags.container);
-		}
+
+		boolean hasContainerBypass = player.hasPermission("residence.bypass.container");
+		if (!hasContainerBypass)
+		    if (!perms.playerHas(player, Flags.container, true)) {
+			event.setCancelled(true);
+			plugin.msg(player, lm.Flag_Deny, Flags.container);
+		    }
 		return;
 	    }
 	}
 
 	if (!perms.playerHas(player, Flags.destroy, perms.playerHas(player, Flags.build, true))) {
 	    event.setCancelled(true);
-	    plugin.msg(player, lm.Flag_Deny, Flags.destroy.getName());
+	    plugin.msg(player, lm.Flag_Deny, Flags.destroy);
 	}
     }
 

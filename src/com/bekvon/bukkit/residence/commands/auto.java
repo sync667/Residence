@@ -10,9 +10,9 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 
+import com.bekvon.bukkit.cmiLib.ConfigReader;
 import com.bekvon.bukkit.residence.Residence;
 import com.bekvon.bukkit.residence.containers.CommandAnnotation;
-import com.bekvon.bukkit.residence.containers.ConfigReader;
 import com.bekvon.bukkit.residence.containers.ResidencePlayer;
 import com.bekvon.bukkit.residence.containers.cmd;
 import com.bekvon.bukkit.residence.permissions.PermissionGroup;
@@ -57,9 +57,13 @@ public class auto implements cmd {
 	int Z = group.getMinZ();
 
 	if (lenght > 0) {
-	    if (lenght < group.getMaxX() && lenght > X)
+	    if (lenght > group.getMaxX())
+		X = group.getMaxX();
+	    else
 		X = lenght;
-	    if (lenght < group.getMaxZ() && lenght > Z)
+	    if (lenght > group.getMaxZ())
+		Z = group.getMaxZ();
+	    else
 		Z = lenght;
 	}
 
@@ -121,7 +125,7 @@ public class auto implements cmd {
 	ResidencePlayer rPlayer = plugin.getPlayerManager().getResidencePlayer(player);
 	PermissionGroup group = rPlayer.getGroup();
 
-	int cost = (int) Math.ceil(cuboid.getSize() * group.getCostPerBlock());
+	double cost = cuboid.getCost(group);
 
 	double balance = 0;
 	if (plugin.getEconomyManager() != null)
@@ -135,6 +139,12 @@ public class auto implements cmd {
 	int skipped = 0;
 	int done = 0;
 	while (true) {
+	    if (Residence.getInstance().getConfigManager().isSelectionIgnoreY()) {
+		if (dir.equals(direction.Top) || dir.equals(direction.Bottom)) {
+		    dir = dir.getNext();
+		    continue;
+		}
+	    }
 	    done++;
 
 	    if (skipped >= 6) {
@@ -142,8 +152,9 @@ public class auto implements cmd {
 	    }
 
 	    // fail safe if loop keeps going on
-	    if (done > 10000)
+	    if (done > 100000) {
 		break;
+	    }
 
 	    if (locked.contains(dir)) {
 		dir = dir.getNext();
@@ -159,7 +170,8 @@ public class auto implements cmd {
 		c.getLowLoc().setY(0);
 		locked.add(dir);
 		dir = dir.getNext();
-		skipped++;
+		if (!Residence.getInstance().getConfigManager().isSelectionIgnoreY())
+		    skipped++;
 		continue;
 	    }
 
@@ -167,7 +179,8 @@ public class auto implements cmd {
 		c.getHighLoc().setY(c.getWorld().getMaxHeight() - 1);
 		locked.add(dir);
 		dir = dir.getNext();
-		skipped++;
+		if (!Residence.getInstance().getConfigManager().isSelectionIgnoreY())
+		    skipped++;
 		continue;
 	    }
 
@@ -178,21 +191,22 @@ public class auto implements cmd {
 		continue;
 	    }
 
-	    if (c.getXSize() >= group.getMaxX() - group.getMinX()) {
+	    if (c.getXSize() > group.getMaxX() - group.getMinX()) {
 		locked.add(dir);
 		dir = dir.getNext();
 		skipped++;
 		continue;
 	    }
 
-	    if (c.getYSize() >= group.getMaxY() - group.getMinY()) {
-		locked.add(dir);
-		dir = dir.getNext();
-		skipped++;
-		continue;
-	    }
+	    if (!Residence.getInstance().getConfigManager().isSelectionIgnoreY())
+		if (c.getYSize() > group.getMaxY() - group.getMinY()) {
+		    locked.add(dir);
+		    dir = dir.getNext();
+		    skipped++;
+		    continue;
+		}
 
-	    if (c.getZSize() >= group.getMaxZ() - group.getMinZ()) {
+	    if (c.getZSize() > group.getMaxZ() - group.getMinZ()) {
 		locked.add(dir);
 		dir = dir.getNext();
 		skipped++;
@@ -203,7 +217,7 @@ public class auto implements cmd {
 
 	    if (checkBalance) {
 		if (plugin.getConfigManager().enableEconomy()) {
-		    cost = (int) Math.ceil(c.getSize() * group.getCostPerBlock());
+		    cost = c.getCost(group);
 		    if (cost > balance)
 			break;
 		}

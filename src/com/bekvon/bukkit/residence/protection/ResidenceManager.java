@@ -22,6 +22,7 @@ import org.bukkit.block.Block;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
+import com.bekvon.bukkit.cmiLib.RawMessage;
 import com.bekvon.bukkit.residence.Residence;
 import com.bekvon.bukkit.residence.api.ResidenceInterface;
 import com.bekvon.bukkit.residence.containers.Flags;
@@ -32,6 +33,7 @@ import com.bekvon.bukkit.residence.containers.Visualizer;
 import com.bekvon.bukkit.residence.containers.lm;
 import com.bekvon.bukkit.residence.economy.rent.RentableLand;
 import com.bekvon.bukkit.residence.economy.rent.RentedLand;
+import com.bekvon.bukkit.residence.event.ResidenceChangedEvent;
 import com.bekvon.bukkit.residence.event.ResidenceCreationEvent;
 import com.bekvon.bukkit.residence.event.ResidenceDeleteEvent;
 import com.bekvon.bukkit.residence.event.ResidenceDeleteEvent.DeleteCause;
@@ -43,8 +45,6 @@ import com.bekvon.bukkit.residence.utils.GetTime;
 import com.griefcraft.cache.ProtectionCache;
 import com.griefcraft.lwc.LWC;
 import com.griefcraft.model.Protection;
-
-import cmiLib.RawMessage;
 
 public class ResidenceManager implements ResidenceInterface {
     protected SortedMap<String, ClaimedResidence> residences;
@@ -176,7 +176,7 @@ public class ResidenceManager implements ResidenceInterface {
 
     @Override
     public boolean addResidence(String name, Location loc1, Location loc2) {
-	return this.addResidence(name, plugin.getServerLandname(), loc1, loc2);
+	return this.addResidence(name, plugin.getServerLandName(), loc1, loc2);
     }
 
     @Override
@@ -241,7 +241,7 @@ public class ResidenceManager implements ResidenceInterface {
 	    return false;
 
 	if (!newRes.isSubzone() && plugin.getConfigManager().enableEconomy() && !resadmin) {
-	    double chargeamount = Math.ceil(newArea.getSize() * group.getCostPerBlock());
+	    double chargeamount = newArea.getCost(group);
 	    if (!plugin.getTransactionManager().chargeEconomyMoney(player, chargeamount)) {
 		// Need to remove area if we can't create residence
 		newRes.removeArea("main");
@@ -542,6 +542,8 @@ public class ResidenceManager implements ResidenceInterface {
 				temploc.setY(y);
 				for (int z = low.getBlockZ(); z <= high.getBlockZ(); z++) {
 				    temploc.setZ(z);
+				    if (!temploc.getChunk().isLoaded())
+					temploc.getChunk().load();
 				    if (plugin.getConfigManager().getCleanBlocks().contains(temploc.getBlock().getType().getId())) {
 					temploc.getBlock().setType(Material.AIR);
 				    }
@@ -582,58 +584,65 @@ public class ResidenceManager implements ResidenceInterface {
 	plugin.getRentManager().removeRentable(name);
 	plugin.getTransactionManager().removeFromSale(name);
 
-	if (parent == null && plugin.getConfigManager().enableEconomy() && plugin.getConfigManager().useResMoneyBack()) {
-	    double chargeamount = Math.ceil(res.getTotalSize() * res.getBlockSellPrice());
-	    if (player != null)
-		plugin.getTransactionManager().giveEconomyMoney(player, chargeamount);
-	    else if (rPlayer != null)
-		plugin.getTransactionManager().giveEconomyMoney(rPlayer.getPlayerName(), chargeamount);
-	}
+	if (!res.isServerLand())
+	    if (parent == null && plugin.getConfigManager().enableEconomy() && plugin.getConfigManager().useResMoneyBack()) {
+		double chargeamount = res.getWorth();
+		if (!res.isOwner(player)) {
+		    plugin.getTransactionManager().giveEconomyMoney(res.getOwner(), chargeamount);
+		} else {
+		    if (player != null)
+			plugin.getTransactionManager().giveEconomyMoney(player, chargeamount);
+		    else if (rPlayer != null)
+			plugin.getTransactionManager().giveEconomyMoney(rPlayer.getPlayerName(), chargeamount);
+		}
+	    }
     }
 
     public void removeLwcFromResidence(final Player player, final ClaimedResidence res) {
-	Bukkit.getScheduler().runTaskAsynchronously(plugin, new Runnable() {
-	    @Override
-	    public void run() {
-		long time = System.currentTimeMillis();
-		LWC lwc = plugin.getLwc();
-		if (lwc == null)
-		    return;
-		if (res == null)
-		    return;
-		int i = 0;
+//	Bukkit.getScheduler().runTaskAsynchronously(plugin, new Runnable() {
+//	    @Override
+//	    public void run() {
+	long time = System.currentTimeMillis();
+	LWC lwc = plugin.getLwc();
+	if (lwc == null)
+	    return;
+	if (res == null)
+	    return;
+	int i = 0;
 
-		ProtectionCache cache = lwc.getProtectionCache();
+	ProtectionCache cache = lwc.getProtectionCache();
 
-		List<Material> list = plugin.getConfigManager().getLwcMatList();
+	List<Material> list = plugin.getConfigManager().getLwcMatList();
 
-		try {
-		    for (CuboidArea area : res.getAreaArray()) {
-			Location low = area.getLowLoc();
-			Location high = area.getHighLoc();
-			World world = low.getWorld();
-			for (int x = low.getBlockX(); x <= high.getBlockX(); x++) {
-			    for (int y = low.getBlockY(); y <= high.getBlockY(); y++) {
-				for (int z = low.getBlockZ(); z <= high.getBlockZ(); z++) {
-				    Block b = world.getBlockAt(x, y, z);
-				    if (!list.contains(b.getType()))
-					continue;
-				    Protection prot = cache.getProtection(b);
-				    if (prot == null)
-					continue;
-				    prot.remove();
-				    i++;
-				}
-			    }
+	try {
+	    for (CuboidArea area : res.getAreaArray()) {
+		Location low = area.getLowLoc();
+		Location high = area.getHighLoc();
+		World world = low.getWorld();
+		for (int x = low.getBlockX(); x <= high.getBlockX(); x++) {
+		    for (int y = low.getBlockY(); y <= high.getBlockY(); y++) {
+			for (int z = low.getBlockZ(); z <= high.getBlockZ(); z++) {
+			    Block b = world.getBlockAt(x, y, z);
+			    if (!b.getChunk().isLoaded())
+				b.getChunk().load();
+			    if (!list.contains(b.getType()))
+				continue;
+			    Protection prot = cache.getProtection(b);
+			    if (prot == null)
+				continue;
+			    prot.remove();
+			    i++;
 			}
 		    }
-		} catch (Exception e) {
 		}
-		if (i > 0)
-		    plugin.msg(player, lm.Residence_LwcRemoved, i, System.currentTimeMillis() - time);
-		return;
 	    }
-	});
+	} catch (Exception e) {
+	}
+	if (i > 0)
+	    plugin.msg(player, lm.Residence_LwcRemoved, i, System.currentTimeMillis() - time);
+	return;
+//	    }
+//	});
     }
 
     public void removeAllByOwner(String owner) {
@@ -718,8 +727,9 @@ public class ResidenceManager implements ResidenceInterface {
 	if (!plugin.getConfigManager().isShortInfoUse() || !(sender instanceof Player))
 	    sender.sendMessage(plugin.msg(lm.General_PlayersFlags, perms.listPlayersFlags()));
 	else if (plugin.getConfigManager().isShortInfoUse() || sender instanceof Player) {
-	    Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "tellraw " + sender.getName() + " " + perms.listPlayersFlagsRaw(sender.getName(), plugin.msg(
-		lm.General_PlayersFlags, "")));
+
+	    RawMessage rm = perms.listPlayersFlagsRaw(sender.getName(), plugin.msg(lm.General_PlayersFlags, ""));
+	    rm.show(sender);
 	}
 
 	String groupFlags = perms.listGroupFlags();
@@ -732,8 +742,7 @@ public class ResidenceManager implements ResidenceInterface {
 	plugin.msg(sender, ChatColor.translateAlternateColorCodes('&', msg));
 
 	if (plugin.getEconomyManager() != null) {
-	    plugin.msg(sender, lm.General_TotalWorth, (int) ((res.getTotalSize() * res.getOwnerGroup().getCostPerBlock())
-		* 100) / 100.0, (int) ((res.getTotalSize() * res.getBlockSellPrice()) * 100) / 100.0);
+	    plugin.msg(sender, lm.General_TotalWorth, res.getWorthByOwner(), res.getWorth());
 	}
 
 	if (res.getSubzonesAmount(false) > 0)
@@ -1001,11 +1010,11 @@ public class ResidenceManager implements ResidenceInterface {
 
 		if (residence.getPermissions().getOwnerUUID().toString().equals(plugin.getServerLandUUID()) &&
 		    !residence.getOwner().equalsIgnoreCase("Server land") &&
-		    !residence.getOwner().equalsIgnoreCase(plugin.getServerLandname()))
+		    !residence.getOwner().equalsIgnoreCase(plugin.getServerLandName()))
 		    continue;
 
 		if (residence.getOwner().equalsIgnoreCase("Server land")) {
-		    residence.getPermissions().setOwner(plugin.getServerLandname(), false);
+		    residence.getPermissions().setOwner(plugin.getServerLandName(), false);
 		}
 		String resName = res.getKey().toLowerCase();
 

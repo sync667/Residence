@@ -9,12 +9,13 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
+import com.bekvon.bukkit.cmiLib.ConfigReader;
 import com.bekvon.bukkit.residence.Residence;
 import com.bekvon.bukkit.residence.containers.CommandAnnotation;
-import com.bekvon.bukkit.residence.containers.ConfigReader;
 import com.bekvon.bukkit.residence.containers.RandomTeleport;
 import com.bekvon.bukkit.residence.containers.cmd;
 import com.bekvon.bukkit.residence.containers.lm;
+import com.bekvon.bukkit.residence.utils.Debug;
 
 public class rt implements cmd {
 
@@ -96,7 +97,7 @@ public class rt implements cmd {
 	    plugin.msg(sender, lm.RandomTeleport_Disabled);
 	    return true;
 	}
-
+	Long time = System.currentTimeMillis();
 	Location loc = plugin.getRandomTpManager().getRandomlocation(wname);
 	plugin.getRandomTeleportMap().put(tPlayer.getName(), System.currentTimeMillis());
 

@@ -10,9 +10,9 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
+import com.bekvon.bukkit.cmiLib.ConfigReader;
 import com.bekvon.bukkit.residence.Residence;
 import com.bekvon.bukkit.residence.containers.CommandAnnotation;
-import com.bekvon.bukkit.residence.containers.ConfigReader;
 import com.bekvon.bukkit.residence.containers.ResidencePlayer;
 import com.bekvon.bukkit.residence.containers.cmd;
 import com.bekvon.bukkit.residence.containers.lm;
@@ -49,7 +49,7 @@ public class select implements cmd {
 
 	if (args.length == 2) {
 	    if (args[1].equals("size") || args[1].equals("cost")) {
-		if (plugin.getSelectionManager().hasPlacedBoth(player.getName())) {
+		if (plugin.getSelectionManager().hasPlacedBoth(player)) {
 		    try {
 			plugin.getSelectionManager().showSelectionInfo(player);
 			return true;
@@ -140,6 +140,10 @@ public class select implements cmd {
 		    plugin.msg(player, lm.Invalid_Amount);
 		    return true;
 		}
+		if (amount > 100)
+		    amount = 100;
+		if (amount < -100)
+		    amount = -100;
 		plugin.getSelectionManager().modify(player, true, amount);
 		return true;
 	    }

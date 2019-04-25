@@ -6,9 +6,9 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
+import com.bekvon.bukkit.cmiLib.ConfigReader;
 import com.bekvon.bukkit.residence.Residence;
 import com.bekvon.bukkit.residence.containers.CommandAnnotation;
-import com.bekvon.bukkit.residence.containers.ConfigReader;
 import com.bekvon.bukkit.residence.containers.cmd;
 import com.bekvon.bukkit.residence.containers.lm;
 import com.bekvon.bukkit.residence.protection.ClaimedResidence;
@@ -33,8 +33,8 @@ public class server implements cmd {
 		plugin.msg(player, lm.Invalid_Residence);
 		return true;
 	    }
-	    res.getPermissions().setOwner(plugin.getServerLandname(), false);
-	    plugin.msg(player, lm.Residence_OwnerChange, args[1], plugin.getServerLandname());
+	    res.getPermissions().setOwner(plugin.getServerLandName(), false);
+	    plugin.msg(player, lm.Residence_OwnerChange, args[1], plugin.getServerLandName());
 	    return true;
 	}
 	plugin.msg(player, lm.Invalid_Residence);

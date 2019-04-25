@@ -56,8 +56,13 @@ import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.event.player.PlayerTeleportEvent.TeleportCause;
 import org.bukkit.inventory.ItemStack;
 
+import com.bekvon.bukkit.cmiLib.ActionBarTitleMessages;
+import com.bekvon.bukkit.cmiLib.ItemReflection;
+import com.bekvon.bukkit.cmiLib.ItemManager.CMIMaterial;
+import com.bekvon.bukkit.cmiLib.VersionChecker.Version;
 import com.bekvon.bukkit.residence.Residence;
 import com.bekvon.bukkit.residence.chat.ChatChannel;
+import com.bekvon.bukkit.residence.containers.ELMessageType;
 import com.bekvon.bukkit.residence.containers.Flags;
 import com.bekvon.bukkit.residence.containers.ResidencePlayer;
 import com.bekvon.bukkit.residence.containers.StuckInfo;
@@ -68,6 +73,7 @@ import com.bekvon.bukkit.residence.economy.rent.RentedLand;
 import com.bekvon.bukkit.residence.event.ResidenceChangedEvent;
 import com.bekvon.bukkit.residence.event.ResidenceDeleteEvent;
 import com.bekvon.bukkit.residence.event.ResidenceFlagChangeEvent;
+import com.bekvon.bukkit.residence.event.ResidenceOwnerChangeEvent;
 import com.bekvon.bukkit.residence.event.ResidenceRenameEvent;
 import com.bekvon.bukkit.residence.gui.SetFlag;
 import com.bekvon.bukkit.residence.permissions.PermissionGroup;
@@ -78,10 +84,6 @@ import com.bekvon.bukkit.residence.protection.FlagPermissions.FlagState;
 import com.bekvon.bukkit.residence.signsStuff.Signs;
 import com.bekvon.bukkit.residence.utils.Debug;
 import com.bekvon.bukkit.residence.utils.GetTime;
-
-import cmiLib.ActionBarTitleMessages;
-import cmiLib.ItemManager.CMIMaterial;
-import cmiLib.VersionChecker.Version;
 
 public class ResidencePlayerListener implements Listener {
 
@@ -215,9 +217,28 @@ public class ResidencePlayerListener implements Listener {
 	event.setFormat(format);
     }
 
-    // Changing chat prefix variable to job name
+    // Changing chat prefix variable to residence name
     @EventHandler(priority = EventPriority.LOW, ignoreCancelled = true)
     public void onPlayerChatGlobalLow(AsyncPlayerChatEvent event) {
+	procEvent(event);
+    }
+
+    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
+    private void processNEvent(AsyncPlayerChatEvent event) {
+	procEvent(event);
+    }
+
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    private void processHEvent(AsyncPlayerChatEvent event) {
+	procEvent(event);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    private void processHHEvent(AsyncPlayerChatEvent event) {
+	procEvent(event);
+    }
+
+    private void procEvent(AsyncPlayerChatEvent event) {
 	// disabling event on world
 	if (plugin.isDisabledWorldListener(event.getPlayer().getWorld()))
 	    return;
@@ -225,6 +246,11 @@ public class ResidencePlayerListener implements Listener {
 	    return;
 	if (plugin.getConfigManager().isGlobalChatSelfModify())
 	    return;
+
+	String format = event.getFormat();
+	if (!format.contains("{residence}"))
+	    return;
+
 	Player player = event.getPlayer();
 
 	ResidencePlayer rPlayer = plugin.getPlayerManager().getResidencePlayer(player);
@@ -232,27 +258,19 @@ public class ResidencePlayerListener implements Listener {
 	if (rPlayer == null)
 	    return;
 
-	if (rPlayer.getResList().size() == 0)
-	    return;
-
 	ClaimedResidence res = rPlayer.getMainResidence();
 
-	if (res == null)
-	    return;
-
-	String honorific = plugin.getConfigManager().getGlobalChatFormat().replace("%1", res.getTopParentName());
+	String honorific = plugin.getConfigManager().getGlobalChatFormat().replace("%1", res == null ? "" : res.getTopParentName());
 	if (honorific.equalsIgnoreCase(" "))
 	    honorific = "";
-	String format = event.getFormat();
-	if (!format.contains("{residence}"))
-	    return;
+
 	format = format.replace("{residence}", honorific);
 	event.setFormat(format);
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onResidenceBackup(ResidenceFlagChangeEvent event) {
-	if (!event.getFlag().equalsIgnoreCase(Flags.backup.getName()))
+	if (!event.getFlag().equalsIgnoreCase(Flags.backup.toString()))
 	    return;
 	Player player = event.getPlayer();
 	if (!plugin.getConfigManager().RestoreAfterRentEnds)
@@ -334,7 +352,7 @@ public class ResidencePlayerListener implements Listener {
 	    if (perm.has(Flags.hook, FlagCombo.OnlyFalse)) {
 		event.setCancelled(true);
 		if (res != null)
-		    plugin.msg(player, lm.Residence_FlagDeny, Flags.hook.getName(), res.getName());
+		    plugin.msg(player, lm.Residence_FlagDeny, Flags.hook, res.getName());
 		return;
 	    }
 	}
@@ -345,8 +363,8 @@ public class ResidencePlayerListener implements Listener {
 	if (event.isCancelled())
 	    return;
 
-	if (!event.getFlag().equalsIgnoreCase(Flags.day.getName()) &&
-	    !event.getFlag().equalsIgnoreCase(Flags.night.getName()))
+	if (!event.getFlag().equalsIgnoreCase(Flags.day.toString()) &&
+	    !event.getFlag().equalsIgnoreCase(Flags.night.toString()))
 	    return;
 
 	switch (event.getNewState()) {
@@ -358,10 +376,10 @@ public class ResidencePlayerListener implements Listener {
 	case INVALID:
 	    break;
 	case TRUE:
-	    if (event.getFlag().equalsIgnoreCase(Flags.day.getName()))
+	    if (event.getFlag().equalsIgnoreCase(Flags.day.toString()))
 		for (Player one : event.getResidence().getPlayersInResidence())
 		    one.setPlayerTime(6000L, false);
-	    if (event.getFlag().equalsIgnoreCase(Flags.night.getName()))
+	    if (event.getFlag().equalsIgnoreCase(Flags.night.toString()))
 		for (Player one : event.getResidence().getPlayersInResidence())
 		    one.setPlayerTime(14000L, false);
 	    break;
@@ -375,20 +393,20 @@ public class ResidencePlayerListener implements Listener {
 	if (event.isCancelled())
 	    return;
 
-	if (!event.getFlag().equalsIgnoreCase(Flags.glow.getName()))
+	if (!event.getFlag().equalsIgnoreCase(Flags.glow.toString()))
 	    return;
 
 	switch (event.getNewState()) {
 	case NEITHER:
 	case FALSE:
-	    if (Version.isCurrentEqualOrHigher(Version.v1_9_R1) && event.getFlag().equalsIgnoreCase(Flags.glow.getName()))
+	    if (Version.isCurrentEqualOrHigher(Version.v1_9_R1) && event.getFlag().equalsIgnoreCase(Flags.glow.toString()))
 		for (Player one : event.getResidence().getPlayersInResidence())
 		    one.setGlowing(false);
 	    break;
 	case INVALID:
 	    break;
 	case TRUE:
-	    if (event.getFlag().equalsIgnoreCase(Flags.glow.getName()))
+	    if (event.getFlag().equalsIgnoreCase(Flags.glow.toString()))
 		if (Version.isCurrentEqualOrHigher(Version.v1_9_R1))
 		    for (Player one : event.getResidence().getPlayersInResidence())
 			one.setGlowing(true);
@@ -448,8 +466,8 @@ public class ResidencePlayerListener implements Listener {
 	if (event.isCancelled())
 	    return;
 
-	if (!event.getFlag().equalsIgnoreCase(Flags.wspeed1.getName()) &&
-	    !event.getFlag().equalsIgnoreCase(Flags.wspeed2.getName()))
+	if (!event.getFlag().equalsIgnoreCase(Flags.wspeed1.toString()) &&
+	    !event.getFlag().equalsIgnoreCase(Flags.wspeed2.toString()))
 	    return;
 
 	switch (event.getNewState()) {
@@ -461,16 +479,16 @@ public class ResidencePlayerListener implements Listener {
 	case INVALID:
 	    break;
 	case TRUE:
-	    if (event.getFlag().equalsIgnoreCase(Flags.wspeed1.getName())) {
+	    if (event.getFlag().equalsIgnoreCase(Flags.wspeed1.toString())) {
 		for (Player one : event.getResidence().getPlayersInResidence())
 		    one.setWalkSpeed(plugin.getConfigManager().getWalkSpeed1().floatValue());
 		if (event.getResidence().getPermissions().has(Flags.wspeed2, FlagCombo.OnlyTrue))
-		    event.getResidence().getPermissions().setFlag(Flags.wspeed2.getName(), FlagState.NEITHER);
-	    } else if (event.getFlag().equalsIgnoreCase(Flags.wspeed2.getName())) {
+		    event.getResidence().getPermissions().setFlag(Flags.wspeed2.toString(), FlagState.NEITHER);
+	    } else if (event.getFlag().equalsIgnoreCase(Flags.wspeed2.toString())) {
 		for (Player one : event.getResidence().getPlayersInResidence())
 		    one.setWalkSpeed(plugin.getConfigManager().getWalkSpeed2().floatValue());
 		if (event.getResidence().getPermissions().has(Flags.wspeed1, FlagCombo.OnlyTrue))
-		    event.getResidence().getPermissions().setFlag(Flags.wspeed1.getName(), FlagState.NEITHER);
+		    event.getResidence().getPermissions().setFlag(Flags.wspeed1.toString(), FlagState.NEITHER);
 	    }
 	    break;
 	default:
@@ -479,12 +497,35 @@ public class ResidencePlayerListener implements Listener {
     }
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onFlagChangeWSpeed(ResidenceOwnerChangeEvent event) {
+	if (event.isCancelled())
+	    return;
+
+	ClaimedResidence res = event.getResidence();
+	if (res.getPermissions().has(Flags.wspeed1, FlagCombo.OnlyTrue) || res.getPermissions().has(Flags.wspeed2, FlagCombo.OnlyTrue))
+	    for (Player one : event.getResidence().getPlayersInResidence())
+		one.setWalkSpeed(0.2F);
+
+	if (res.getPermissions().has(Flags.sun, FlagCombo.OnlyTrue) || res.getPermissions().has(Flags.rain, FlagCombo.OnlyTrue))
+	    for (Player one : event.getResidence().getPlayersInResidence())
+		one.resetPlayerWeather();
+
+	if (res.getPermissions().has(Flags.fly, FlagCombo.OnlyTrue))
+	    for (Player one : event.getResidence().getPlayersInResidence())
+		fly(one, false);
+
+	if (res.getPermissions().has(Flags.glow, FlagCombo.OnlyTrue) && Version.isCurrentEqualOrHigher(Version.v1_9_R1))
+	    for (Player one : event.getResidence().getPlayersInResidence())
+		one.setGlowing(false);
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onFlagChangeJump(ResidenceFlagChangeEvent event) {
 	if (event.isCancelled())
 	    return;
 
-	if (!event.getFlag().equalsIgnoreCase(Flags.jump2.getName()) &&
-	    !event.getFlag().equalsIgnoreCase(Flags.jump3.getName()))
+	if (!event.getFlag().equalsIgnoreCase(Flags.jump2.toString()) &&
+	    !event.getFlag().equalsIgnoreCase(Flags.jump3.toString()))
 	    return;
 
 	switch (event.getNewState()) {
@@ -493,12 +534,12 @@ public class ResidencePlayerListener implements Listener {
 	case INVALID:
 	    break;
 	case TRUE:
-	    if (event.getFlag().equalsIgnoreCase(Flags.jump2.getName())) {
+	    if (event.getFlag().equalsIgnoreCase(Flags.jump2.toString())) {
 		if (event.getResidence().getPermissions().has(Flags.jump3, FlagCombo.OnlyTrue))
-		    event.getResidence().getPermissions().setFlag(Flags.jump3.getName(), FlagState.NEITHER);
-	    } else if (event.getFlag().equalsIgnoreCase(Flags.jump3.getName())) {
+		    event.getResidence().getPermissions().setFlag(Flags.jump3.toString(), FlagState.NEITHER);
+	    } else if (event.getFlag().equalsIgnoreCase(Flags.jump3.toString())) {
 		if (event.getResidence().getPermissions().has(Flags.jump2, FlagCombo.OnlyTrue))
-		    event.getResidence().getPermissions().setFlag(Flags.jump2.getName(), FlagState.NEITHER);
+		    event.getResidence().getPermissions().setFlag(Flags.jump2.toString(), FlagState.NEITHER);
 	    }
 	    break;
 	default:
@@ -511,7 +552,7 @@ public class ResidencePlayerListener implements Listener {
 	if (event.isCancelled())
 	    return;
 
-	if (!event.getFlag().equalsIgnoreCase(Flags.sun.getName()) && !event.getFlag().equalsIgnoreCase(Flags.rain.getName()))
+	if (!event.getFlag().equalsIgnoreCase(Flags.sun.toString()) && !event.getFlag().equalsIgnoreCase(Flags.rain.toString()))
 	    return;
 
 	switch (event.getNewState()) {
@@ -523,10 +564,10 @@ public class ResidencePlayerListener implements Listener {
 	case INVALID:
 	    break;
 	case TRUE:
-	    if (event.getFlag().equalsIgnoreCase(Flags.sun.getName()))
+	    if (event.getFlag().equalsIgnoreCase(Flags.sun.toString()))
 		for (Player one : event.getResidence().getPlayersInResidence())
 		    one.setPlayerWeather(WeatherType.CLEAR);
-	    if (event.getFlag().equalsIgnoreCase(Flags.rain.getName()))
+	    if (event.getFlag().equalsIgnoreCase(Flags.rain.toString()))
 		for (Player one : event.getResidence().getPlayersInResidence())
 		    one.setPlayerWeather(WeatherType.DOWNFALL);
 	    break;
@@ -540,7 +581,7 @@ public class ResidencePlayerListener implements Listener {
 	if (event.isCancelled())
 	    return;
 
-	if (!event.getFlag().equalsIgnoreCase(Flags.fly.getName()))
+	if (!event.getFlag().equalsIgnoreCase(Flags.fly.toString()))
 	    return;
 
 	switch (event.getNewState()) {
@@ -624,7 +665,7 @@ public class ResidencePlayerListener implements Listener {
 	    return;
 
 	event.setCancelled(true);
-	plugin.msg(player, lm.Residence_FlagDeny, Flags.command.getName(), res.getName());
+	plugin.msg(player, lm.Residence_FlagDeny, Flags.command, res.getName());
 
     }
 
@@ -744,8 +785,6 @@ public class ResidencePlayerListener implements Listener {
 
 	Location loc = sign.getLocation();
 
-	String landName = null;
-
 	Player player = event.getPlayer();
 	if (player.hasMetadata("NPC"))
 	    return;
@@ -764,13 +803,8 @@ public class ResidencePlayerListener implements Listener {
 		plugin.msg(player, lm.Invalid_Residence);
 		return;
 	    }
-
-	    landName = res.getName();
-
 	} else {
 	    res = plugin.getResidenceManager().getByLoc(loc);
-	    if (res != null)
-		landName = res.getName();
 	}
 
 	if (res == null) {
@@ -876,18 +910,18 @@ public class ResidencePlayerListener implements Listener {
 	    for (int i = 0; i < maxH; i++) {
 		location.setY(from - i);
 		Block block = location.getBlock();
-		if (!plugin.getNms().isEmptyBlock(block)) {
+		if (!isEmptyBlock(block)) {
 		    location.setY(from - i + 1);
 		    break;
 		}
 		if (location.getBlockY() <= 0) {
 		    player.setFlying(false);
 		    player.setAllowFlight(false);
-		    plugin.msg(player, lm.Residence_FlagDeny, Flags.nofly.getName(), location.getWorld().getName());
+		    plugin.msg(player, lm.Residence_FlagDeny, Flags.nofly, location.getWorld().getName());
 		    return;
 		}
 	    }
-	    plugin.msg(player, lm.Residence_FlagDeny, Flags.nofly.getName(), location.getWorld().getName());
+	    plugin.msg(player, lm.Residence_FlagDeny, Flags.nofly, location.getWorld().getName());
 	    player.closeInventory();
 	    player.teleport(location);
 	    player.setFlying(false);
@@ -956,7 +990,6 @@ public class ResidencePlayerListener implements Listener {
 	case "COMMAND":
 	case "ANVIL":
 	case "CAKE_BLOCK":
-	case "NOTE_BLOCK":
 	case "DIODE":
 	case "DIODE_BLOCK_OFF":
 	case "DIODE_BLOCK_ON":
@@ -984,8 +1017,55 @@ public class ResidencePlayerListener implements Listener {
 	return plugin.getConfigManager().getCustomRightClick().contains(Integer.valueOf(block.getType().getId()));
     }
 
+    public boolean isCanUseEntity_BothClick(Material mat, Block block) {
+	CMIMaterial m = CMIMaterial.get(mat);
+	if (m.isDoor())
+	    return true;
+	if (m.isButton())
+	    return true;
+	if (m.isGate())
+	    return true;
+	if (m.isTrapDoor())
+	    return true;
+
+	switch (CMIMaterial.get(mat)) {
+	case LEVER:
+	case PISTON:
+	case STICKY_PISTON:
+	case NOTE_BLOCK:
+	case DRAGON_EGG:
+	    return true;
+	default:
+	    return Residence.getInstance().getConfigManager().getCustomBothClick().contains(Integer.valueOf(block.getType().getId()));
+	}
+    }
+
+    public static boolean isEmptyBlock(Block block) {
+	switch (CMIMaterial.get(block)) {
+	case COBWEB:
+	case STRING:
+	case WALL_SIGN:
+	case VINE:
+	case TRIPWIRE_HOOK:
+	case TRIPWIRE:
+	case PAINTING:
+	case ITEM_FRAME:
+	    return true;
+	default:
+	    break;
+	}
+
+	if (CMIMaterial.get(block).isSapling())
+	    return true;
+	if (CMIMaterial.get(block).isAir())
+	    return true;
+	if (CMIMaterial.get(block).isButton())
+	    return true;
+	return false;
+    }
+
     private boolean isCanUseEntity(Material mat, Block block) {
-	return plugin.getNms().isCanUseEntity_BothClick(mat, block) || isCanUseEntity_RClickOnly(mat, block);
+	return isCanUseEntity_BothClick(mat, block) || isCanUseEntity_RClickOnly(mat, block);
     }
 
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
@@ -1017,7 +1097,7 @@ public class ResidencePlayerListener implements Listener {
 	    boolean hasplace = perms.playerHas(player, Flags.place, perms.playerHas(player, Flags.build, true));
 	    if (!hasplace) {
 		event.setCancelled(true);
-		plugin.msg(player, lm.Flag_Deny, Flags.build.getName());
+		plugin.msg(player, lm.Flag_Deny, Flags.build);
 		return;
 	    }
 	}
@@ -1042,12 +1122,16 @@ public class ResidencePlayerListener implements Listener {
 	FlagPermissions perms = plugin.getPermsByLocForPlayer(block.getLocation(), player);
 	boolean resadmin = plugin.isResAdminOn(player);
 	if (!resadmin) {
+
+	    boolean hasUseBypass = player.hasPermission("residence.bypass.use");
+
 	    boolean hasuse = perms.playerHas(player, Flags.use, true);
 	    boolean haspressure = perms.playerHas(player, Flags.pressure, hasuse);
-	    if ((!hasuse && !haspressure || !haspressure) && mat.isPlate()) {
-		event.setCancelled(true);
-		return;
-	    }
+	    if (!hasUseBypass)
+		if ((!hasuse && !haspressure || !haspressure) && mat.isPlate()) {
+		    event.setCancelled(true);
+		    return;
+		}
 	}
 	if (!perms.playerHas(player, Flags.trample, perms.playerHas(player, Flags.build, true)) && (mat.equals(CMIMaterial.FARMLAND) || mat.equals(CMIMaterial.SOUL_SAND))) {
 	    event.setCancelled(true);
@@ -1070,10 +1154,10 @@ public class ResidencePlayerListener implements Listener {
 	@SuppressWarnings("deprecation")
 	CMIMaterial heldItem = CMIMaterial.get(player.getItemInHand());
 
-	if (!heldItem.equals(plugin.getConfigManager().getSelectionTool()))
+	if (heldItem != plugin.getConfigManager().getSelectionTool())
 	    return;
 
-	if (plugin.getWorldEditTool().equals(plugin.getConfigManager().getSelectionTool()))
+	if (plugin.getWorldEditTool() == plugin.getConfigManager().getSelectionTool())
 	    return;
 
 	if (player.getGameMode() == GameMode.CREATIVE)
@@ -1082,6 +1166,7 @@ public class ResidencePlayerListener implements Listener {
 	boolean resadmin = plugin.isResAdminOn(player);
 	if (player.hasMetadata("NPC"))
 	    return;
+
 	ResidencePlayer rPlayer = plugin.getPlayerManager().getResidencePlayer(player);
 	PermissionGroup group = rPlayer.getGroup();
 	if (player.hasPermission("residence.select") || player.hasPermission("residence.create") && !player.isPermissionSet("residence.select") || group
@@ -1111,7 +1196,6 @@ public class ResidencePlayerListener implements Listener {
 	return;
     }
 
-    @SuppressWarnings("deprecation")
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     public void onInfoCheck(PlayerInteractEvent event) {
 	if (event.getPlayer() == null)
@@ -1166,6 +1250,10 @@ public class ResidencePlayerListener implements Listener {
 	if (plugin.isDisabledWorldListener(event.getPlayer().getWorld()))
 	    return;
 	Player player = event.getPlayer();
+
+	if (!plugin.getNms().isMainHand(event))
+	    return;
+
 	ItemStack iih = plugin.getNms().itemInMainHand(player);
 	CMIMaterial heldItem = CMIMaterial.get(iih);
 
@@ -1176,7 +1264,7 @@ public class ResidencePlayerListener implements Listener {
 	Material mat = block.getType();
 
 	if (!(event.getAction() == Action.PHYSICAL || (isContainer(mat, block) || isCanUseEntity_RClickOnly(mat, block)) && event.getAction() == Action.RIGHT_CLICK_BLOCK
-	    || plugin.getNms().isCanUseEntity_BothClick(mat, block))) {
+	    || isCanUseEntity_BothClick(mat, block))) {
 	    if (!heldItem.equals(plugin.getConfigManager().getSelectionTool()) && !heldItem.equals(plugin.getConfigManager().getInfoTool())
 		&& !heldItem.isDye() && !heldItem.equals(CMIMaterial.ARMOR_STAND) && !heldItem.isBoat() && !placingMinecart(block, iih)) {
 		return;
@@ -1206,10 +1294,12 @@ public class ResidencePlayerListener implements Listener {
 	FlagPermissions perms = plugin.getPermsByLocForPlayer(block.getLocation(), player);
 	if (heldItem != null && event.getAction() == Action.RIGHT_CLICK_BLOCK) {
 	    if (heldItem.isDye()) {
-		if (heldItem.equals(CMIMaterial.BONE_MEAL) && block.getType() == Material.GRASS || heldItem.equals(CMIMaterial.COCOA_BEANS) && blockM.equals(CMIMaterial.JUNGLE_WOOD)) {
+		CMIMaterial btype = CMIMaterial.get(block);
+		if (heldItem.equals(CMIMaterial.BONE_MEAL) && (btype == CMIMaterial.GRASS_BLOCK || btype == CMIMaterial.GRASS || btype.isSapling()) ||
+		    heldItem == CMIMaterial.COCOA_BEANS && blockM == CMIMaterial.JUNGLE_WOOD) {
 		    perms = plugin.getPermsByLocForPlayer(block.getRelative(event.getBlockFace()).getLocation(), player);
 		    if (!perms.playerHas(player, Flags.build, true)) {
-			plugin.msg(player, lm.Flag_Deny, Flags.build.getName());
+			plugin.msg(player, lm.Flag_Deny, Flags.build);
 			event.setCancelled(true);
 			return;
 		    }
@@ -1218,7 +1308,7 @@ public class ResidencePlayerListener implements Listener {
 	    if (heldItem.equals(CMIMaterial.ARMOR_STAND) || heldItem.isBoat()) {
 		perms = plugin.getPermsByLocForPlayer(block.getRelative(event.getBlockFace()).getLocation(), player);
 		if (!perms.playerHas(player, Flags.build, true)) {
-		    plugin.msg(player, lm.Flag_Deny, Flags.build.getName());
+		    plugin.msg(player, lm.Flag_Deny, Flags.build);
 		    event.setCancelled(true);
 		    return;
 		}
@@ -1226,7 +1316,7 @@ public class ResidencePlayerListener implements Listener {
 	    if (placingMinecart(block, iih)) {
 		perms = plugin.getPermsByLocForPlayer(block.getLocation(), player);
 		if (!perms.playerHas(player, Flags.build, true)) {
-		    plugin.msg(player, lm.Flag_Deny, Flags.build.getName());
+		    plugin.msg(player, lm.Flag_Deny, Flags.build);
 		    event.setCancelled(true);
 		    return;
 		}
@@ -1234,48 +1324,63 @@ public class ResidencePlayerListener implements Listener {
 	}
 
 	if (isContainer(mat, block) || isCanUseEntity(mat, block)) {
-	    boolean hasuse = perms.playerHas(player, Flags.use, true);
+	    boolean hasUseBypass = player.hasPermission("residence.bypass.use");
+	    boolean hasContainerBypass = player.hasPermission("residence.bypass.container");
+	    boolean hasuse = perms.playerHas(player, Flags.use, true) || hasUseBypass;
 	    ClaimedResidence res = plugin.getResidenceManager().getByLoc(block.getLocation());
-	    if (res == null || !res.isOwner(player)){
-		for (Entry<Material, Flags> checkMat : FlagPermissions.getMaterialUseFlagList().entrySet()) {
-		    if (mat != checkMat.getKey())
-			continue;
+	    if (res == null || !res.isOwner(player)) {
+		if (!hasContainerBypass)
+		    for (Entry<Material, Flags> checkMat : FlagPermissions.getMaterialUseFlagList().entrySet()) {
+			if (mat != checkMat.getKey())
+			    continue;
 
-		    if (perms.playerHas(player, checkMat.getValue(), hasuse))
-			continue;
+			if (perms.playerHas(player, checkMat.getValue(), hasuse))
+			    continue;
 
-		    if (hasuse || checkMat.getValue().equals(Flags.container)) {
-			event.setCancelled(true);
-			plugin.msg(player, lm.Flag_Deny, checkMat.getValue());
+			if (hasuse || checkMat.getValue().equals(Flags.container)) {
+			    event.setCancelled(true);
+			    plugin.msg(player, lm.Flag_Deny, checkMat.getValue());
+			    return;
+			}
+
+			if (event.getAction() == Action.RIGHT_CLICK_BLOCK) {
+			    event.setCancelled(true);
+			    plugin.msg(player, lm.Flag_Deny, checkMat.getValue());
+			    return;
+			}
+
+			if (isCanUseEntity_BothClick(mat, block)) {
+			    event.setCancelled(true);
+			    plugin.msg(player, lm.Flag_Deny, checkMat.getValue());
+			}
+
 			return;
 		    }
+	    }
 
-		    if (event.getAction() == Action.RIGHT_CLICK_BLOCK) {
+	    if (!hasContainerBypass)
+		if (plugin.getConfigManager().getCustomContainers().contains(blockM.getId())) {
+		    if (!perms.playerHas(player, Flags.container, hasuse)) {
+			event.setCancelled(true);
+			plugin.msg(player, lm.Flag_Deny, Flags.container);
+			return;
+		    }
+		}
+
+	    if (!hasUseBypass) {
+		if (plugin.getConfigManager().getCustomBothClick().contains(blockM.getId())) {
+		    if (!hasuse) {
 			event.setCancelled(true);
 			plugin.msg(player, lm.Flag_Deny, Flags.use);
+			return;
 		    }
-		    return;
 		}
-	    }
-	    if (plugin.getConfigManager().getCustomContainers().contains(blockM.getId())) {
-		if (!perms.playerHas(player, Flags.container, hasuse)) {
-		    event.setCancelled(true);
-		    plugin.msg(player, lm.Flag_Deny, Flags.container.getName());
-		    return;
-		}
-	    }
-	    if (plugin.getConfigManager().getCustomBothClick().contains(blockM.getId())) {
-		if (!hasuse) {
-		    event.setCancelled(true);
-		    plugin.msg(player, lm.Flag_Deny, Flags.use.getName());
-		    return;
-		}
-	    }
-	    if (plugin.getConfigManager().getCustomRightClick().contains(blockM.getId()) && event.getAction() == Action.RIGHT_CLICK_BLOCK) {
-		if (!hasuse) {
-		    event.setCancelled(true);
-		    plugin.msg(player, lm.Flag_Deny, Flags.use.getName());
-		    return;
+		if (plugin.getConfigManager().getCustomRightClick().contains(blockM.getId()) && event.getAction() == Action.RIGHT_CLICK_BLOCK) {
+		    if (!hasuse) {
+			event.setCancelled(true);
+			plugin.msg(player, lm.Flag_Deny, Flags.use);
+			return;
+		    }
 		}
 	    }
 	}
@@ -1299,7 +1404,7 @@ public class ResidencePlayerListener implements Listener {
 	ClaimedResidence res = plugin.getResidenceManager().getByLoc(ent.getLocation());
 
 	if (res != null && res.getPermissions().playerHas(player, Flags.trade, FlagCombo.OnlyFalse)) {
-	    plugin.msg(player, lm.Residence_FlagDeny, Flags.trade.getName(), res.getName());
+	    plugin.msg(player, lm.Residence_FlagDeny, Flags.trade, res.getName());
 	    event.setCancelled(true);
 	}
     }
@@ -1345,10 +1450,14 @@ public class ResidencePlayerListener implements Listener {
 	ClaimedResidence res = plugin.getResidenceManager().getByLoc(ent.getLocation());
 	if (res == null)
 	    return;
-	if (!res.isOwner(player) && res.getPermissions().playerHas(player, Flags.container, FlagCombo.OnlyFalse) && player.isSneaking()) {
-	    plugin.msg(player, lm.Residence_FlagDeny, Flags.container.getName(), res.getName());
-	    event.setCancelled(true);
-	}
+
+	boolean hasContainerBypass = player.hasPermission("residence.bypass.container");
+
+	if (!hasContainerBypass)
+	    if (!res.isOwner(player) && res.getPermissions().playerHas(player, Flags.container, FlagCombo.OnlyFalse) && player.isSneaking()) {
+		plugin.msg(player, lm.Residence_FlagDeny, Flags.container, res.getName());
+		event.setCancelled(true);
+	    }
     }
 
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
@@ -1372,7 +1481,7 @@ public class ResidencePlayerListener implements Listener {
 	if (res == null)
 	    return;
 	if (!res.isOwner(player) && !res.getPermissions().playerHas(player, Flags.riding, FlagCombo.TrueOrNone)) {
-	    plugin.msg(player, lm.Residence_FlagDeny, Flags.riding.getName(), res.getName());
+	    plugin.msg(player, lm.Residence_FlagDeny, Flags.riding, res.getName());
 	    event.setCancelled(true);
 	}
     }
@@ -1397,10 +1506,14 @@ public class ResidencePlayerListener implements Listener {
 	ClaimedResidence res = plugin.getResidenceManager().getByLoc(ent.getLocation());
 	if (res == null)
 	    return;
-	if (!res.isOwner(player) && res.getPermissions().playerHas(player, Flags.container, FlagCombo.OnlyFalse)) {
-	    plugin.msg(player, lm.Residence_FlagDeny, Flags.container.getName(), res.getName());
-	    event.setCancelled(true);
-	}
+
+	boolean hasContainerBypass = player.hasPermission("residence.bypass.container");
+
+	if (!hasContainerBypass)
+	    if (!res.isOwner(player) && res.getPermissions().playerHas(player, Flags.container, FlagCombo.OnlyFalse)) {
+		plugin.msg(player, lm.Residence_FlagDeny, Flags.container, res.getName());
+		event.setCancelled(true);
+	    }
     }
 
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
@@ -1424,7 +1537,7 @@ public class ResidencePlayerListener implements Listener {
 	if (res == null)
 	    return;
 	if (!res.isOwner(player) && res.getPermissions().playerHas(player, Flags.riding, FlagCombo.OnlyFalse)) {
-	    plugin.msg(player, lm.Residence_FlagDeny, Flags.riding.getName(), res.getName());
+	    plugin.msg(player, lm.Residence_FlagDeny, Flags.riding, res.getName());
 	    event.setCancelled(true);
 	}
     }
@@ -1450,7 +1563,14 @@ public class ResidencePlayerListener implements Listener {
 	if (res == null)
 	    return;
 	if (!res.isOwner(player) && res.getPermissions().playerHas(player, Flags.dye, FlagCombo.OnlyFalse)) {
-	    plugin.msg(player, lm.Residence_FlagDeny, Flags.dye.getName(), res.getName());
+	    ItemStack iih = plugin.getNms().itemInMainHand(player);
+	    ItemStack iiho = ItemReflection.getItemInOffHand(player);
+	    if (iih == null && iiho == null)
+		return;
+	    if (iih != null && !CMIMaterial.isDye(iih.getType()) && iiho != null && !CMIMaterial.isDye(iiho.getType()))
+		return;
+
+	    plugin.msg(player, lm.Residence_FlagDeny, Flags.dye, res.getName());
 	    event.setCancelled(true);
 	}
     }
@@ -1477,7 +1597,13 @@ public class ResidencePlayerListener implements Listener {
 	    return;
 
 	if (!res.isOwner(player) && res.getPermissions().playerHas(player, Flags.shear, FlagCombo.OnlyFalse)) {
-	    plugin.msg(player, lm.Residence_FlagDeny, Flags.shear.getName(), res.getName());
+	    ItemStack iih = plugin.getNms().itemInMainHand(player);
+	    ItemStack iiho = ItemReflection.getItemInOffHand(player);
+	    if (iih == null && iiho == null)
+		return;
+	    if (iih != null && !CMIMaterial.SHEARS.equals(iih.getType()) && iiho != null && !CMIMaterial.SHEARS.equals(iiho.getType()))
+		return;
+	    plugin.msg(player, lm.Residence_FlagDeny, Flags.shear, res.getName());
 	    event.setCancelled(true);
 	}
 
@@ -1520,10 +1646,14 @@ public class ResidencePlayerListener implements Listener {
 	    event.setCancelled(true);
 	    return;
 	}
-	if (!perms.playerHas(player, Flags.container, perms.playerHas(player, Flags.use, true))) {
-	    event.setCancelled(true);
-	    plugin.msg(player, lm.Flag_Deny, Flags.container.getName());
-	}
+
+	boolean hasContainerBypass = player.hasPermission("residence.bypass.container");
+
+	if (!hasContainerBypass)
+	    if (!perms.playerHas(player, Flags.container, perms.playerHas(player, Flags.use, true))) {
+		event.setCancelled(true);
+		plugin.msg(player, lm.Flag_Deny, Flags.container);
+	    }
     }
 
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
@@ -1560,7 +1690,7 @@ public class ResidencePlayerListener implements Listener {
 
 	FlagPermissions perms = plugin.getPermsByLocForPlayer(loc, player);
 	if (!perms.playerHas(player, Flags.build, true)) {
-	    plugin.msg(player, lm.Flag_Deny, Flags.build.getName());
+	    plugin.msg(player, lm.Flag_Deny, Flags.build);
 	    event.setCancelled(true);
 	    return;
 	}
@@ -1610,7 +1740,7 @@ public class ResidencePlayerListener implements Listener {
 	FlagPermissions perms = plugin.getPermsByLocForPlayer(event.getBlockClicked().getLocation(), player);
 	boolean hasdestroy = perms.playerHas(player, Flags.destroy, perms.playerHas(player, Flags.build, true));
 	if (!hasdestroy) {
-	    plugin.msg(player, lm.Flag_Deny, Flags.destroy.getName());
+	    plugin.msg(player, lm.Flag_Deny, Flags.destroy);
 	    event.setCancelled(true);
 	}
     }
@@ -1645,7 +1775,7 @@ public class ResidencePlayerListener implements Listener {
 	} else if (event.getCause() == TeleportCause.ENDER_PEARL) {
 	    if (res.getPermissions().playerHas(player, Flags.enderpearl, FlagCombo.OnlyFalse)) {
 		event.setCancelled(true);
-		plugin.msg(player, lm.Residence_FlagDeny, Flags.enderpearl.getName(), res.getName());
+		plugin.msg(player, lm.Residence_FlagDeny, Flags.enderpearl, res.getName());
 		return;
 	    }
 	}
@@ -1659,7 +1789,7 @@ public class ResidencePlayerListener implements Listener {
 	if (plugin.getNms().isChorusTeleport(event.getCause())) {
 	    if (!res.isOwner(player) && res.getPermissions().playerHas(player, Flags.chorustp, FlagCombo.OnlyFalse) && !player.hasPermission("residence.admin.tp")) {
 		event.setCancelled(true);
-		plugin.msg(player, lm.Residence_FlagDeny, Flags.chorustp.getName(), res.getName());
+		plugin.msg(player, lm.Residence_FlagDeny, Flags.chorustp, res.getName());
 		return;
 	    }
 	}
@@ -1699,7 +1829,7 @@ public class ResidencePlayerListener implements Listener {
 		    }
 		    return;
 		}
-	    }, 1L);
+	    }, 20L);
     }
 
     private static Location getSafeLocation(Location loc) {
@@ -1755,7 +1885,8 @@ public class ResidencePlayerListener implements Listener {
 	ClaimedResidence res = event.getTo();
 	ClaimedResidence ResOld = event.getFrom();
 	Player player = event.getPlayer();
-
+	if (player == null)
+	    return;
 	if (res == null && ResOld != null) {
 	    if (ResOld.getPermissions().has(Flags.night, FlagCombo.OnlyTrue) || ResOld.getPermissions().has(Flags.day, FlagCombo.OnlyTrue))
 		player.resetPlayerTime();
@@ -1902,7 +2033,6 @@ public class ResidencePlayerListener implements Listener {
     }
 
     public boolean handleNewLocation(final Player player, Location loc, boolean move) {
-
 	ClaimedResidence res = plugin.getResidenceManager().getByLoc(loc);
 
 	ClaimedResidence orres = res;
@@ -1941,7 +2071,7 @@ public class ResidencePlayerListener implements Listener {
 			for (int i = 0; i < maxH; i++) {
 			    location.setY(from - i);
 			    Block block = location.getBlock();
-			    if (!plugin.getNms().isEmptyBlock(block)) {
+			    if (!isEmptyBlock(block)) {
 				location.setY(from - i + 1);
 				break;
 			    }
@@ -1953,13 +2083,13 @@ public class ResidencePlayerListener implements Listener {
 				    teleported = teleport(player, lastLoc);
 				else
 				    teleported = teleport(player, res.getOutsideFreeLoc(loc, player));
-				plugin.msg(player, lm.Residence_FlagDeny, Flags.nofly.getName(), orres.getName());
+				plugin.msg(player, lm.Residence_FlagDeny, Flags.nofly, orres.getName());
 				if (!teleported)
 				    return false;
 				return true;
 			    }
 			}
-			plugin.msg(player, lm.Residence_FlagDeny, Flags.nofly.getName(), orres.getName());
+			plugin.msg(player, lm.Residence_FlagDeny, Flags.nofly, orres.getName());
 			player.closeInventory();
 			boolean teleported = teleport(player, location);
 			if (!teleported)
@@ -2043,10 +2173,17 @@ public class ResidencePlayerListener implements Listener {
 		    player.closeInventory();
 		    teleported = teleport(player, newLoc);
 		}
-		if (plugin.getConfigManager().useActionBar()) {
+
+		switch (plugin.getConfigManager().getEnterLeaveMessageType()) {
+		case ActionBar:
+		case TitleBar:
 		    ActionBarTitleMessages.send(player, plugin.msg(lm.Residence_MoveDeny, orres.getName()));
-		} else {
+		    break;
+		case ChatBox:
 		    plugin.msg(player, lm.Residence_MoveDeny, orres.getName());
+		    break;
+		default:
+		    break;
 		}
 		return teleported;
 	    }
@@ -2067,7 +2204,7 @@ public class ResidencePlayerListener implements Listener {
 		for (int i = 0; i < maxH; i++) {
 		    location.setY(from - i);
 		    Block block = location.getBlock();
-		    if (!plugin.getNms().isEmptyBlock(block)) {
+		    if (!isEmptyBlock(block)) {
 			location.setY(from - i + 1);
 			break;
 		    }
@@ -2079,11 +2216,11 @@ public class ResidencePlayerListener implements Listener {
 			else
 			    teleported = teleport(player, res.getOutsideFreeLoc(loc, player));
 
-			plugin.msg(player, lm.Residence_FlagDeny, Flags.nofly.getName(), orres.getName());
+			plugin.msg(player, lm.Residence_FlagDeny, Flags.nofly, orres.getName());
 			return teleported;
 		    }
 		}
-		plugin.msg(player, lm.Residence_FlagDeny, Flags.nofly.getName(), orres.getName());
+		plugin.msg(player, lm.Residence_FlagDeny, Flags.nofly, orres.getName());
 		player.closeInventory();
 		teleported = teleport(player, location);
 		if (!teleported)
@@ -2141,6 +2278,8 @@ public class ResidencePlayerListener implements Listener {
 	plugin.getServ().getPluginManager().callEvent(chgEvent);
     }
 
+    HashMap<UUID, Long> informar = new HashMap<UUID, Long>();
+
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     public void onResidenceChangeMessagePrint(ResidenceChangedEvent event) {
 
@@ -2168,14 +2307,25 @@ public class ResidencePlayerListener implements Listener {
 	if (player.hasMetadata("NPC"))
 	    return;
 	if (message != null) {
-	    if (plugin.getConfigManager().useTitleMessage()) {
-		ActionBarTitleMessages.sendTitle(player, ChatColor.YELLOW + insertMessages(player, res, message));
-	    }
-	    if (plugin.getConfigManager().useActionBar()) {
-		ActionBarTitleMessages.send(player, (new StringBuilder()).append(ChatColor.YELLOW).append(insertMessages(player, res, message))
-		    .toString());
-	    } else {
-		plugin.msg(player, ChatColor.YELLOW + this.insertMessages(player, res, message));
+
+	    Long time = informar.get(player.getUniqueId());
+	    if (time == null || time + 100L < System.currentTimeMillis()) {
+
+		switch (plugin.getConfigManager().getEnterLeaveMessageType()) {
+		case ActionBar:
+		    ActionBarTitleMessages.send(player, (new StringBuilder()).append(ChatColor.YELLOW).append(insertMessages(player, res, message))
+			.toString());
+		    break;
+		case ChatBox:
+		    plugin.msg(player, ChatColor.YELLOW + this.insertMessages(player, res, message));
+		    break;
+		case TitleBar:
+		    ActionBarTitleMessages.sendTitle(player, ChatColor.YELLOW + insertMessages(player, res, message));
+		    break;
+		default:
+		    break;
+		}
+		informar.put(player.getUniqueId(), System.currentTimeMillis());
 	    }
 	}
 

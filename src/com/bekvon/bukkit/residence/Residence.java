@@ -46,10 +46,17 @@ import org.dynmap.DynmapAPI;
 import org.kingdoms.main.Kingdoms;
 import org.kingdoms.manager.game.GameManagement;
 
+import com.bekvon.bukkit.cmiLib.ActionBarTitleMessages;
+import com.bekvon.bukkit.cmiLib.ItemManager;
+import com.bekvon.bukkit.cmiLib.ItemManager.CMIMaterial;
+import com.bekvon.bukkit.cmiLib.RawMessage;
+import com.bekvon.bukkit.cmiLib.VersionChecker;
+import com.bekvon.bukkit.cmiLib.VersionChecker.Version;
 import com.bekvon.bukkit.residence.BossBar.BossBarManager;
 import com.bekvon.bukkit.residence.Placeholders.Placeholder;
 import com.bekvon.bukkit.residence.Placeholders.PlaceholderAPIHook;
 import com.bekvon.bukkit.residence.Siege.ResidenceSiegeListener;
+import com.bekvon.bukkit.residence.allNms.v1_13Events;
 import com.bekvon.bukkit.residence.allNms.v1_10Events;
 import com.bekvon.bukkit.residence.allNms.v1_8Events;
 import com.bekvon.bukkit.residence.allNms.v1_9Events;
@@ -60,7 +67,6 @@ import com.bekvon.bukkit.residence.api.ResidenceApi;
 import com.bekvon.bukkit.residence.api.ResidenceInterface;
 import com.bekvon.bukkit.residence.api.ResidencePlayerInterface;
 import com.bekvon.bukkit.residence.chat.ChatManager;
-import com.bekvon.bukkit.residence.containers.ABInterface;
 import com.bekvon.bukkit.residence.containers.Flags;
 import com.bekvon.bukkit.residence.containers.MinimizeFlags;
 import com.bekvon.bukkit.residence.containers.MinimizeMessages;
@@ -70,6 +76,7 @@ import com.bekvon.bukkit.residence.dynmap.DynMapListeners;
 import com.bekvon.bukkit.residence.dynmap.DynMapManager;
 import com.bekvon.bukkit.residence.economy.BOSEAdapter;
 import com.bekvon.bukkit.residence.economy.BlackHoleEconomy;
+import com.bekvon.bukkit.residence.economy.CMIEconomy;
 import com.bekvon.bukkit.residence.economy.EconomyInterface;
 import com.bekvon.bukkit.residence.economy.EssentialsEcoAdapter;
 import com.bekvon.bukkit.residence.economy.IConomy5Adapter;
@@ -113,6 +120,7 @@ import com.bekvon.bukkit.residence.text.Language;
 import com.bekvon.bukkit.residence.text.help.HelpEntry;
 import com.bekvon.bukkit.residence.text.help.InformationPager;
 import com.bekvon.bukkit.residence.utils.CrackShot;
+import com.bekvon.bukkit.residence.utils.Debug;
 import com.bekvon.bukkit.residence.utils.FileCleanUp;
 import com.bekvon.bukkit.residence.utils.RandomTp;
 import com.bekvon.bukkit.residence.utils.Sorting;
@@ -128,12 +136,6 @@ import com.residence.zip.ZipLibrary;
 import com.sk89q.worldedit.bukkit.WorldEditPlugin;
 import com.sk89q.worldguard.bukkit.WorldGuardPlugin;
 
-import cmiLib.ActionBarTitleMessages;
-import cmiLib.ItemManager;
-import cmiLib.RawMessage;
-import cmiLib.VersionChecker;
-import cmiLib.ItemManager.CMIMaterial;
-import cmiLib.VersionChecker.Version;
 import cosine.boseconomy.BOSEconomy;
 import fr.crafter.tickleman.realeconomy.RealEconomy;
 import fr.crafter.tickleman.realplugin.RealPlugin;
@@ -193,6 +195,7 @@ public class Residence extends JavaPlugin {
     protected WESchematicManager SchematicManager;
     private InformationPager InformationPagerManager;
     private WorldGuardInterface worldGuardUtil;
+    private int wepVersion = 6;
     private KingdomsUtil kingdomsUtil;
 
     protected CommandFiller cmdFiller;
@@ -223,7 +226,7 @@ public class Residence extends JavaPlugin {
     private WorldGuardPlugin wg = null;
     private CMIMaterial wepid;
 
-    private String ServerLandname = "Server_Land";
+//    private String ServerLandname = "Server_Land";
     private String ServerLandUUID = "00000000-0000-0000-0000-000000000000";
     private String TempUserUUID = "ffffffff-ffff-ffff-ffff-ffffffffffff";
 
@@ -465,10 +468,6 @@ public class Residence extends JavaPlugin {
 		this.ConvertFile();
 	    }
 
-	    if (!new File(dataFolder, "config.yml").isFile()) {
-		this.writeDefaultConfigFromJar();
-	    }
-
 	    if (!new File(dataFolder, "uuids.yml").isFile()) {
 		File file = new File(this.getDataFolder(), "uuids.yml");
 		file.createNewFile();
@@ -484,10 +483,10 @@ public class Residence extends JavaPlugin {
 	    this.getCommand("res").setExecutor(getCommandManager());
 	    this.getCommand("resadmin").setExecutor(getCommandManager());
 	    this.getCommand("residence").setExecutor(getCommandManager());
-
-	    this.getCommand("res").setTabCompleter(new TabComplete());
-	    this.getCommand("resadmin").setTabCompleter(new TabComplete());
-	    this.getCommand("residence").setTabCompleter(new TabComplete());
+	    TabComplete tab = new TabComplete();
+	    this.getCommand("res").setTabCompleter(tab);
+	    this.getCommand("resadmin").setTabCompleter(tab);
+	    this.getCommand("residence").setTabCompleter(tab);
 
 //	    Residence.getConfigManager().UpdateConfigFile();
 
@@ -511,7 +510,6 @@ public class Residence extends JavaPlugin {
 
 	    getConfigManager().UpdateFlagFile();
 
-	    FlagUtilManager = new FlagUtil(this);
 	    getFlagUtilManager().load();
 
 	    try {
@@ -526,7 +524,7 @@ public class Residence extends JavaPlugin {
 	    String version = versionChecker.getVersion().getShortVersion();
 	    try {
 		Class<?> nmsClass;
-		if (getConfigManager().CouldronCompatability())
+		if (getConfigManager().CouldronCompatibility())
 		    nmsClass = Class.forName("com.bekvon.bukkit.residence.allNms.v1_7_Couldron");
 		else
 		    nmsClass = Class.forName("com.bekvon.bukkit.residence.allNms." + versionChecker.getVersion());
@@ -623,31 +621,71 @@ public class Residence extends JavaPlugin {
 		if (in != null)
 		    in.close();
 	    }
+
 	    economy = null;
 	    if (this.getConfig().getBoolean("Global.EnableEconomy", false)) {
 		Bukkit.getConsoleSender().sendMessage(getPrefix() + " Scanning for economy systems...");
-		if (gmanager.getPermissionsPlugin() instanceof ResidenceVaultAdapter) {
-		    ResidenceVaultAdapter vault = (ResidenceVaultAdapter) gmanager.getPermissionsPlugin();
-		    if (vault.economyOK()) {
-			economy = vault;
-			Bukkit.getConsoleSender().sendMessage(getPrefix() + " Found Vault using economy system: " + vault.getEconomyName());
-		    }
-		}
-		if (economy == null) {
-		    this.loadVaultEconomy();
-		}
-		if (economy == null) {
+		switch (this.getConfigManager().getEconomyType()) {
+		case BOSEconomy:
 		    this.loadBOSEconomy();
-		}
-		if (economy == null) {
+		    break;
+		case CMIEconomy:
+		    this.loadCMIEconomy();
+		    break;
+		case Essentials:
 		    this.loadEssentialsEconomy();
-		}
-		if (economy == null) {
+		    break;
+		case MineConomy:
+		    break;
+		case None:
+		    if (gmanager.getPermissionsPlugin() instanceof ResidenceVaultAdapter) {
+			ResidenceVaultAdapter vault = (ResidenceVaultAdapter) gmanager.getPermissionsPlugin();
+			if (vault.economyOK()) {
+			    economy = vault;
+			    consoleMessage("Found Vault using economy system: &5" + vault.getEconomyName());
+			}
+		    }
+		    if (economy == null) {
+			this.loadVaultEconomy();
+		    }
+		    if (economy == null) {
+			this.loadCMIEconomy();
+		    }
+		    if (economy == null) {
+			this.loadBOSEconomy();
+		    }
+		    if (economy == null) {
+			this.loadEssentialsEconomy();
+		    }
+		    if (economy == null) {
+			this.loadRealEconomy();
+		    }
+		    if (economy == null) {
+			this.loadIConomy();
+		    }
+		    break;
+		case RealEconomy:
 		    this.loadRealEconomy();
-		}
-		if (economy == null) {
+		    break;
+		case Vault:
+		    if (gmanager.getPermissionsPlugin() instanceof ResidenceVaultAdapter) {
+			ResidenceVaultAdapter vault = (ResidenceVaultAdapter) gmanager.getPermissionsPlugin();
+			if (vault.economyOK()) {
+			    economy = vault;
+			    consoleMessage("Found Vault using economy system: &5" + vault.getEconomyName());
+			}
+		    }
+		    if (economy == null) {
+			this.loadVaultEconomy();
+		    }
+		    break;
+		case iConomy:
 		    this.loadIConomy();
+		    break;
+		default:
+		    break;
 		}
+
 		if (economy == null) {
 		    Bukkit.getConsoleSender().sendMessage(getPrefix() + " Unable to find an economy system...");
 		    economy = new BlackHoleEconomy();
@@ -690,6 +728,9 @@ public class Residence extends JavaPlugin {
 	    tmanager = new TransactionManager(this);
 
 	    pmanager = new PermissionListManager(this);
+
+	    NewLanguageManager = new Language(this);
+	    getLM().LanguageReload();
 
 	    try {
 		this.loadYml();
@@ -744,13 +785,14 @@ public class Residence extends JavaPlugin {
 		if (Version.isCurrentEqualOrHigher(Version.v1_10_R1))
 		    pm.registerEvents(new v1_10Events(), this);
 
+		// 1.13 event
+		if (Version.isCurrentEqualOrHigher(Version.v1_13_R1))
+		    pm.registerEvents(new v1_13Events(this), this);
+
 		firstenable = false;
 	    } else {
 		plistener.reload();
 	    }
-
-	    NewLanguageManager = new Language(this);
-	    getLM().LanguageReload();
 
 	    AutoSelectionManager = new AutoSelection(this);
 
@@ -831,7 +873,6 @@ public class Residence extends JavaPlugin {
 	getShopSignUtilManager().LoadSigns();
 	getShopSignUtilManager().BoardUpdate();
 	getVersionChecker().VersionCheck(null);
-
     }
 
     private boolean setupPlaceHolderAPI() {
@@ -865,26 +906,34 @@ public class Residence extends JavaPlugin {
     }
 
     private void setWorldEdit() {
-	Plugin plugin = server.getPluginManager().getPlugin("WorldEdit");
-	if (plugin != null) {
-	    this.wep = (WorldEditPlugin) plugin;
-	    try {
-		Class.forName("com.sk89q.worldedit.bukkit.selections.Selection");
-		smanager = new WorldEditSelectionManager(server, this);
-		if (wep != null)
-		    SchematicManager = new SchematicsManager(this);
-	    } catch (ClassNotFoundException e) {
-		smanager = new WorldEdit7SelectionManager(server, this);
-		if (wep != null)
-		    SchematicManager = new Schematics7Manager(this);
-	    }
-	    if (smanager == null)
+	try {
+	    Plugin plugin = server.getPluginManager().getPlugin("WorldEdit");
+	    if (plugin != null) {
+		this.wep = (WorldEditPlugin) plugin;
+		try {
+		    Class.forName("com.sk89q.worldedit.bukkit.selections.Selection");
+		    smanager = new WorldEditSelectionManager(server, this);
+		    if (wep != null)
+			SchematicManager = new SchematicsManager(this);
+		} catch (ClassNotFoundException e) {
+		    smanager = new WorldEdit7SelectionManager(server, this);
+		    if (wep != null)
+			SchematicManager = new Schematics7Manager(this);
+		}
+		if (smanager == null)
+		    smanager = new SelectionManager(server, this);
+		if (this.getWorldEdit().getConfig().isInt("wand-item"))
+		    wepid = CMIMaterial.get(this.getWorldEdit().getConfig().getInt("wand-item"));
+		else
+		    wepid = CMIMaterial.get((String) this.getWorldEdit().getConfig().get("wand-item"));
+
+		Bukkit.getConsoleSender().sendMessage(getPrefix() + " Found WorldEdit " + this.getWorldEdit().getDescription().getVersion());
+	    } else {
 		smanager = new SelectionManager(server, this);
-	    wepid = CMIMaterial.get(this.getWorldEdit().getConfig().getInt("wand-item"));
-	    Bukkit.getConsoleSender().sendMessage(getPrefix() + " Found WorldEdit");
-	} else {
-	    smanager = new SelectionManager(server, this);
-	    Bukkit.getConsoleSender().sendMessage(getPrefix() + " WorldEdit NOT found!");
+		Bukkit.getConsoleSender().sendMessage(getPrefix() + " WorldEdit NOT found!");
+	    }
+	} catch (Exception | Error e) {
+	    e.printStackTrace();
 	}
     }
 
@@ -907,19 +956,8 @@ public class Residence extends JavaPlugin {
     private void setWorldGuard() {
 	Plugin wgplugin = server.getPluginManager().getPlugin("WorldGuard");
 	if (wgplugin != null) {
-	    try {
-		Class.forName("com.sk89q.worldedit.BlockVector");
-		Class.forName("com.sk89q.worldguard.protection.ApplicableRegionSet");
-		Class.forName("com.sk89q.worldguard.protection.managers.RegionManager");
-		Class.forName("com.sk89q.worldguard.protection.regions.ProtectedCuboidRegion");
-		Class.forName("com.sk89q.worldguard.protection.regions.ProtectedRegion");
-	    } catch (Exception e) {
-		Bukkit.getConsoleSender().sendMessage(getPrefix() + ChatColor.RED
-		    + " Found WorldGuard, but its not supported by Residence plugin. Please update WorldGuard to latest version");
-		return;
-	    }
 	    wg = (WorldGuardPlugin) wgplugin;
-	    Bukkit.getConsoleSender().sendMessage(getPrefix() + " Found WorldGuard");
+	    Bukkit.getConsoleSender().sendMessage(getPrefix() + " Found WorldGuard " + wg.getDescription().getVersion());
 	}
     }
 
@@ -960,6 +998,8 @@ public class Residence extends JavaPlugin {
     }
 
     public FlagUtil getFlagUtilManager() {
+	if (FlagUtilManager == null)
+	    FlagUtilManager = new FlagUtil(this);
 	return FlagUtilManager;
     }
 
@@ -1095,12 +1135,13 @@ public class Residence extends JavaPlugin {
 	    } else if (p.getDescription().getVersion().startsWith("5")) {
 		economy = new IConomy5Adapter();
 	    } else {
-		Bukkit.getConsoleSender().sendMessage(getPrefix() + " UNKNOWN iConomy version!");
+		consoleMessage("UNKNOWN iConomy version!");
 		return;
 	    }
-	    Bukkit.getConsoleSender().sendMessage(getPrefix() + " Successfully linked with iConomy! Version: " + p.getDescription().getVersion());
+	    consoleMessage("Successfully linked with &5iConomy");
+	    consoleMessage("Version: " + p.getDescription().getVersion());
 	} else {
-	    Bukkit.getConsoleSender().sendMessage(getPrefix() + " iConomy NOT found!");
+	    consoleMessage("iConomy NOT found!");
 	}
     }
 
@@ -1108,9 +1149,9 @@ public class Residence extends JavaPlugin {
 	Plugin p = getServer().getPluginManager().getPlugin("BOSEconomy");
 	if (p != null) {
 	    economy = new BOSEAdapter((BOSEconomy) p);
-	    Bukkit.getConsoleSender().sendMessage(getPrefix() + " Successfully linked with BOSEconomy!");
+	    consoleMessage("Successfully linked with &5BOSEconomy");
 	} else {
-	    Bukkit.getConsoleSender().sendMessage(getPrefix() + " BOSEconomy NOT found!");
+	    consoleMessage("BOSEconomy NOT found!");
 	}
     }
 
@@ -1118,9 +1159,19 @@ public class Residence extends JavaPlugin {
 	Plugin p = getServer().getPluginManager().getPlugin("Essentials");
 	if (p != null) {
 	    economy = new EssentialsEcoAdapter((Essentials) p);
-	    Bukkit.getConsoleSender().sendMessage(getPrefix() + " Successfully linked with Essentials Economy!");
+	    consoleMessage("Successfully linked with &5Essentials Economy");
 	} else {
-	    Bukkit.getConsoleSender().sendMessage(getPrefix() + " Essentials Economy NOT found!");
+	    consoleMessage("Essentials Economy NOT found!");
+	}
+    }
+
+    private void loadCMIEconomy() {
+	Plugin p = getServer().getPluginManager().getPlugin("CMI");
+	if (p != null) {
+	    economy = new CMIEconomy();
+	    consoleMessage("Successfully linked with &5CMIEconomy");
+	} else {
+	    consoleMessage("CMIEconomy NOT found!");
 	}
     }
 
@@ -1128,9 +1179,9 @@ public class Residence extends JavaPlugin {
 	Plugin p = getServer().getPluginManager().getPlugin("RealPlugin");
 	if (p != null) {
 	    economy = new RealShopEconomy(new RealEconomy((RealPlugin) p));
-	    Bukkit.getConsoleSender().sendMessage(getPrefix() + " Successfully linked with RealShop Economy!");
+	    consoleMessage("Successfully linked with &5RealShop Economy");
 	} else {
-	    Bukkit.getConsoleSender().sendMessage(getPrefix() + " RealShop Economy NOT found!");
+	    consoleMessage("RealShop Economy NOT found!");
 	}
     }
 
@@ -1139,13 +1190,13 @@ public class Residence extends JavaPlugin {
 	if (p != null) {
 	    ResidenceVaultAdapter vault = new ResidenceVaultAdapter(getServer());
 	    if (vault.economyOK()) {
-		Bukkit.getConsoleSender().sendMessage(getPrefix() + " Found Vault using economy: " + vault.getEconomyName());
+		consoleMessage("Found Vault using economy: &5" + vault.getEconomyName());
 		economy = vault;
 	    } else {
-		Bukkit.getConsoleSender().sendMessage(getPrefix() + " Found Vault, but Vault reported no usable economy system...");
+		consoleMessage("Found Vault, but Vault reported no usable economy system...");
 	    }
 	} else {
-	    Bukkit.getConsoleSender().sendMessage(getPrefix() + " Vault NOT found!");
+	    consoleMessage("Vault NOT found!");
 	}
     }
 
@@ -1716,8 +1767,13 @@ public class Residence extends JavaPlugin {
 	return null;
     }
 
+    @Deprecated
     public String getServerLandname() {
-	return ServerLandname;
+	return this.getLM().getMessage(lm.server_land);
+    }
+
+    public String getServerLandName() {
+	return this.getLM().getMessage(lm.server_land);
     }
 
     public String getServerLandUUID() {
@@ -1845,11 +1901,16 @@ public class Residence extends JavaPlugin {
 
     public WorldGuardInterface getWorldGuardUtil() {
 	if (worldGuardUtil == null) {
+
+	    int version = 6;
 	    try {
-		Class.forName("com.sk89q.worldguard.WorldGuard");
-		this.consoleMessage("WorldGuard7");
+		version = Integer.parseInt(wg.getDescription().getVersion().substring(0, 1));
+	    } catch (Exception | Error e) {
+	    }
+	    if (version >= 7) {
+		wepVersion = version;
 		worldGuardUtil = new WorldGuard7Util(this);
-	    } catch (Exception e) {
+	    } else {
 		worldGuardUtil = new WorldGuardUtil(this);
 	    }
 	}
@@ -1892,7 +1953,7 @@ public class Residence extends JavaPlugin {
 		    outMsg = message;
 
 		RawMessage rm = new RawMessage();
-		rm.add(outMsg, "ง2" + permision);
+		rm.add(outMsg, "ยง2" + permision);
 		rm.show(sender);
 		ConsoleCommandSender console = Bukkit.getServer().getConsoleSender();
 		console.sendMessage(ChatColor.RED + sender.getName() + " No permission -> " + permision);
@@ -1917,4 +1978,9 @@ public class Residence extends JavaPlugin {
 //    public TownManager getTownManager() {
 //	return townManager;
 //    }
+
+    public int getWorldGuardVersion() {
+	return wepVersion;
+    }
+
 }

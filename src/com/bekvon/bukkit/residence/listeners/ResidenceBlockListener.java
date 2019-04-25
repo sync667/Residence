@@ -43,6 +43,9 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.metadata.FixedMetadataValue;
 
+import com.bekvon.bukkit.cmiLib.ActionBarTitleMessages;
+import com.bekvon.bukkit.cmiLib.ItemManager.CMIMaterial;
+import com.bekvon.bukkit.cmiLib.VersionChecker.Version;
 import com.bekvon.bukkit.residence.Residence;
 import com.bekvon.bukkit.residence.commands.auto.direction;
 import com.bekvon.bukkit.residence.containers.Flags;
@@ -54,10 +57,6 @@ import com.bekvon.bukkit.residence.protection.CuboidArea;
 import com.bekvon.bukkit.residence.protection.FlagPermissions;
 import com.bekvon.bukkit.residence.protection.FlagPermissions.FlagCombo;
 import com.bekvon.bukkit.residence.utils.Debug;
-
-import cmiLib.ActionBarTitleMessages;
-import cmiLib.ItemManager.CMIMaterial;
-import cmiLib.VersionChecker.Version;
 
 public class ResidenceBlockListener implements Listener {
 
@@ -72,14 +71,12 @@ public class ResidenceBlockListener implements Listener {
 	this.plugin = residence;
     }
 
-    @SuppressWarnings("deprecation")
     @EventHandler(priority = EventPriority.LOWEST)
     public void onAnvilInventoryClick(InventoryClickEvent e) {
 	// Disabling listener if flag disabled globally
 	if (!Flags.anvilbreak.isGlobalyEnabled())
 	    return;
 	Inventory inv = e.getInventory();
-
 	try {
 	    if (inv == null || inv.getType() != InventoryType.ANVIL || e.getInventory().getLocation() == null)
 		return;
@@ -87,7 +84,7 @@ public class ResidenceBlockListener implements Listener {
 	    return;
 	}
 	Block b = e.getInventory().getLocation().getBlock();
-	if (b == null || b.getType() != Material.ANVIL)
+	if (b == null || !CMIMaterial.isAnvil(b.getType()))
 	    return;
 
 	ClaimedResidence res = plugin.getResidenceManager().getByLoc(e.getInventory().getLocation());
@@ -108,8 +105,8 @@ public class ResidenceBlockListener implements Listener {
 		e1.printStackTrace();
 	    }
 	} else {
-	    // Waiting for 1.13+ fix
-
+	    // Need to fix roTation issue
+	    b.setType(CMIMaterial.ANVIL.getMaterial());
 	}
 
     }
@@ -208,6 +205,7 @@ public class ResidenceBlockListener implements Listener {
 	if (plugin.getItemManager().isIgnored(mat, group, world)) {
 	    return;
 	}
+	
 	ClaimedResidence res = plugin.getResidenceManager().getByLoc(block.getLocation());
 	if (plugin.getConfigManager().enabledRentSystem() && res != null) {
 	    String resname = res.getName();
@@ -217,6 +215,7 @@ public class ResidenceBlockListener implements Listener {
 		return;
 	    }
 	}
+
 	FlagPermissions perms = plugin.getPermsByLocForPlayer(block.getLocation(), player);
 	if (res != null && res.getItemIgnoreList().isListed(mat))
 	    return;
@@ -230,6 +229,7 @@ public class ResidenceBlockListener implements Listener {
 	    plugin.msg(player, lm.Flag_Deny, Flags.container);
 	    event.setCancelled(true);
 	}
+
     }
 
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
@@ -495,7 +495,7 @@ public class ResidenceBlockListener implements Listener {
 	ResidencePlayer rPlayer = plugin.getPlayerManager().getResidencePlayer(player);
 	PermissionGroup group = rPlayer.getGroup();
 
-	int cost = (int) Math.ceil(cuboid.getSize() * group.getCostPerBlock());
+	double cost = cuboid.getCost(group);
 
 	double balance = 0;
 	if (plugin.getEconomyManager() != null)
@@ -577,7 +577,7 @@ public class ResidenceBlockListener implements Listener {
 
 	    if (checkBalance) {
 		if (plugin.getConfigManager().enableEconomy()) {
-		    cost = (int) Math.ceil(c.getSize() * group.getCostPerBlock());
+		    cost = c.getCost(group);
 		    if (cost > balance)
 			break;
 		}
@@ -629,7 +629,7 @@ public class ResidenceBlockListener implements Listener {
 	boolean hasplace = perms.playerHas(player, Flags.place, perms.playerHas(player, Flags.build, true));
 	if (!hasplace && !player.hasPermission("residence.bypass.build")) {
 	    event.setCancelled(true);
-	    plugin.msg(player, lm.Flag_Deny, Flags.place.getName());
+	    plugin.msg(player, lm.Flag_Deny, Flags.place);
 	    return;
 	}
     }
@@ -773,9 +773,11 @@ public class ResidenceBlockListener implements Listener {
 	}
     }
 
-    @SuppressWarnings({ "deprecation" })
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
     public void onLandDryFade(BlockFadeEvent event) {
+	// Moved to separate class
+	if (Version.isCurrentEqualOrHigher(Version.v1_13_R1))
+	    return;
 	// Disabling listener if flag disabled globally
 	if (!Flags.dryup.isGlobalyEnabled())
 	    return;
@@ -790,24 +792,21 @@ public class ResidenceBlockListener implements Listener {
 	FlagPermissions perms = plugin.getPermsByLoc(event.getNewState().getLocation());
 	if (!perms.has(Flags.dryup, true)) {
 	    Block b = event.getBlock();
-	    if (Residence.getInstance().getVersionChecker().getVersion().isLower(Version.v1_13_R1)) {
-		try {
-		    b.getClass().getMethod("setData", byte.class).invoke(b, (byte) 7);
-		} catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException | NoSuchMethodException | SecurityException e1) {
-		    e1.printStackTrace();
-		}
-	    } else {
-		// Waiting for 1.13+ fix
-
+	    try {
+		b.getClass().getMethod("setData", byte.class).invoke(b, (byte) 7);
+	    } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException | NoSuchMethodException | SecurityException e1) {
+		e1.printStackTrace();
 	    }
 	    event.setCancelled(true);
 	    return;
 	}
     }
 
-    @SuppressWarnings("deprecation")
-    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    @EventHandler(priority = EventPriority.NORMAL, ignoreCancelled = true)
     public void onLandDryPhysics(BlockPhysicsEvent event) {
+	// Moved to separate class
+	if (Version.isCurrentEqualOrHigher(Version.v1_13_R1))
+	    return;
 	// Disabling listener if flag disabled globally
 	if (!Flags.dryup.isGlobalyEnabled())
 	    return;
@@ -815,22 +814,20 @@ public class ResidenceBlockListener implements Listener {
 	if (plugin.isDisabledWorldListener(event.getBlock().getWorld()))
 	    return;
 
-	CMIMaterial mat = CMIMaterial.get(event.getBlock());
+	if (!event.getBlock().getChunk().isLoaded())
+	    return;
+
+	CMIMaterial mat = CMIMaterial.get(event.getBlock().getType());
 	if (!mat.equals(CMIMaterial.FARMLAND))
 	    return;
 
 	FlagPermissions perms = plugin.getPermsByLoc(event.getBlock().getLocation());
-	if (!perms.has(Flags.dryup, true)) {
+	if (perms.has(Flags.dryup, FlagCombo.OnlyFalse)) {
 	    Block b = event.getBlock();
-	    if (Residence.getInstance().getVersionChecker().getVersion().isLower(Version.v1_13_R1)) {
-		try {
-		    b.getClass().getMethod("setData", byte.class).invoke(b, (byte) 7);
-		} catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException | NoSuchMethodException | SecurityException e1) {
-		    e1.printStackTrace();
-		}
-	    } else {
-		// Waiting for 1.13+ fix
-
+	    try {
+		b.getClass().getMethod("setData", byte.class).invoke(b, (byte) 7);
+	    } catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException | NoSuchMethodException | SecurityException e1) {
+		e1.printStackTrace();
 	    }
 	    event.setCancelled(true);
 	    return;
@@ -939,7 +936,7 @@ public class ResidenceBlockListener implements Listener {
 	    FlagPermissions perms = plugin.getPermsByLocForPlayer(event.getBlock().getLocation(), player);
 	    if (player != null && !perms.playerHas(player, Flags.ignite, true) && !plugin.isResAdminOn(player)) {
 		event.setCancelled(true);
-		plugin.msg(player, lm.Flag_Deny, Flags.ignite.getName());
+		plugin.msg(player, lm.Flag_Deny, Flags.ignite);
 	    }
 	} else {
 	    // Disabling listener if flag disabled globally
